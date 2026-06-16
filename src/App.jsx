@@ -337,7 +337,8 @@ function processObservationAssignment(rows, nameMap = {}) {
   const byObserver = {}
   rows.forEach((row) => {
     const rawObserver = (row["observer"] || "").trim()
-    const observer = nameMap[rawObserver] || rawObserver
+    const normalizedObserver = rawObserver.replace(/'/g, "")
+    const observer = nameMap[normalizedObserver] || nameMap[rawObserver] || rawObserver
     if (!observer) return
     if (!byObserver[observer]) byObserver[observer] = []
     byObserver[observer].push({
@@ -672,8 +673,9 @@ function ObservationAssignmentModal({ data, onClose }) {
                   <div className="obs-left" style={{ flex: 1 }}>
                     <div style={{ fontWeight: 600, fontSize: 13, color: "#1e293b" }}>{d.teacher}</div>
                     <div style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>{d.slot}</div>
-                    <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 3 }}>
-                      Tanggal kelas: {formatDate(d.dateOfClass)} · Ditugaskan: {formatDate(d.assignedDate)}
+                    <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 3, display: "flex", gap: 10, flexWrap: "wrap" }}>
+                      <span>Tanggal kelas: {formatDate(d.dateOfClass)}</span>
+                      <span>Ditugaskan: {formatDate(d.assignedDate)}</span>
                     </div>
                   </div>
                   <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4, flexShrink: 0 }}>
