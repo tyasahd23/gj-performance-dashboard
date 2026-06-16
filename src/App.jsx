@@ -38,6 +38,8 @@ const CSV_CUTI =
   "https://docs.google.com/spreadsheets/d/e/2PACX-1vSyJm_AxS2dzNaoV_ztNDX75aZ0h2Q9pws3QcKQQd13gJ-Rh2wd8W_nBAOzCzTLISNZ_uSRB1KBzHHu/pub?gid=1751476240&single=true&output=csv"
 const CSV_COACHING =
   "https://docs.google.com/spreadsheets/d/e/2PACX-1vSyJm_AxS2dzNaoV_ztNDX75aZ0h2Q9pws3QcKQQd13gJ-Rh2wd8W_nBAOzCzTLISNZ_uSRB1KBzHHu/pub?gid=1523639724&single=true&output=csv"
+const CSV_ASSIGNMENT_OBSERVASI =
+  "https://docs.google.com/spreadsheets/d/e/2PACX-1vSyJm_AxS2dzNaoV_ztNDX75aZ0h2Q9pws3QcKQQd13gJ-Rh2wd8W_nBAOzCzTLISNZ_uSRB1KBzHHu/pub?gid=1134271417&single=true&output=csv"
 const CSV_NAMEMAP =
   "https://docs.google.com/spreadsheets/d/e/2PACX-1vSyJm_AxS2dzNaoV_ztNDX75aZ0h2Q9pws3QcKQQd13gJ-Rh2wd8W_nBAOzCzTLISNZ_uSRB1KBzHHu/pub?gid=1915278661&single=true&output=csv"
 
@@ -330,6 +332,33 @@ function processCoaching(rows, nameMap = {}) {
   return byTeacher
 }
 
+// ─── Observation Assignment ───────────────────────────────────────────────────
+function processObservationAssignment(rows, nameMap = {}) {
+  const byObserver = {}
+  rows.forEach((row) => {
+    const rawObserver = (row["observer"] || "").trim()
+    const observer = nameMap[rawObserver] || rawObserver
+    if (!observer) return
+    if (!byObserver[observer]) byObserver[observer] = []
+    byObserver[observer].push({
+      assignedDate:   (row["assigned_date"]  || "").trim(),
+      deadline:       (row["deadline"]        || "").trim(),
+      dateSubmission: (row["date_submission"] || "").trim(),
+      status:         (row["status"]          || "").trim(),
+      month:          (row["month"]           || "").trim(),
+      period:         (row["period"]          || "").trim(),
+      teacher:        (row["teacher"]         || "").trim(),
+      slot:           (row["slot"]            || "").trim(),
+      dateOfClass:    (row["date_of_class"]   || "").trim(),
+      link:           (row["link"]            || "").trim(),
+    })
+  })
+  Object.keys(byObserver).forEach((t) => {
+    byObserver[t].sort((a, b) => new Date(b.deadline) - new Date(a.deadline))
+  })
+  return byObserver
+}
+
 // ─── Sub components ───────────────────────────────────────────────────────────
 function ChartLegend() {
   return (
@@ -603,6 +632,59 @@ function MembantuPiketModal({ data, onClose }) {
                     <span className={`badge ${d.reason === "cuti" ? "b-bw" : d.reason === "sakit" ? "b-info" : "b-av"}`}>
                       {d.reason}
                     </span>
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+        <div className="modal-footer">
+          <button className="btn-close" onClick={onClose}>Tutup</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function ObservationAssignmentModal({ data, onClose }) {
+  if (!data) return null
+  function statusStyle(s) {
+    const v = (s || "").toLowerCase()
+    if (v === "on time") return { background: "#EAF3DE", color: "#27500A" }
+    if (v === "late")    return { background: "#FCEBEB", color: "#791F1F" }
+    return                      { background: "#F1EFE8", color: "#5F5E5A" }
+  }
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-header">
+          <div className="modal-meta">
+            <div className="modal-class">Observation Assignment</div>
+          </div>
+        </div>
+        <div className="modal-body">
+          {data.length === 0 ? (
+            <p className="modal-empty">Belum ada penugasan.</p>
+          ) : (
+            data.map((d, i) => (
+              <div key={i} className="obs-item">
+                <div className="obs-top">
+                  <div className="obs-left" style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 600, fontSize: 13, color: "#1e293b" }}>{d.teacher}</div>
+                    <div style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>{d.slot}</div>
+                    <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 3 }}>
+                      Tanggal kelas: {formatDate(d.dateOfClass)} · Ditugaskan: {formatDate(d.assignedDate)}
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4, flexShrink: 0 }}>
+                    <span style={{ ...statusStyle(d.status), fontSize: 10, padding: "2px 8px", borderRadius: 999, fontWeight: 500 }}>
+                      {d.status || "—"}
+                    </span>
+                    <div style={{ fontSize: 11, color: "#64748b" }}>Deadline: {formatDate(d.deadline)}</div>
+                    {d.link
+                      ? <a className="va-meta-link" href={d.link} target="_blank" rel="noopener noreferrer" style={{ fontSize: 11 }}>Class recording →</a>
+                      : <span style={{ fontSize: 11, color: "#94a3b8" }}>Belum tersedia</span>
+                    }
                   </div>
                 </div>
               </div>
@@ -915,7 +997,9 @@ function Dashboard({ user, accessProfile }) {
   const [activeView,         setActiveView]           = useState("overview")
   const [sidebarSearch,      setSidebarSearch]        = useState("")
   const [photoMapData,       setPhotoMapData]         = useState({})
-  const [teacherProfiles,    setTeacherProfiles]       = useState({})
+  const [teacherProfiles,            setTeacherProfiles]            = useState({})
+  const [observationAssignmentData,  setObservationAssignmentData]  = useState(null)
+  const [activeObsAssignmentModal,   setActiveObsAssignmentModal]   = useState(false)
 
   const hasTeamToManage = (accessProfile.directReportNickNames?.size ?? 0) > 0
     || ["POD Lead", "Science Lead", "STEM Lead"].includes(accessProfile.role)
@@ -948,7 +1032,7 @@ function Dashboard({ user, accessProfile }) {
 
       // Remaining CSVs + Supabase run in parallel now that nameMap is ready
       let done = 0
-      const tryFinish = () => { done++; if (done === 4) setLoading(false) }
+      const tryFinish = () => { done++; if (done === 5) setLoading(false) }
 
       supabase.from("v_users_full")
         .select("nick_name, full_name, url_photo, role, main_pod, direct_manager_nama")
@@ -994,6 +1078,11 @@ function Dashboard({ user, accessProfile }) {
       Papa.parse(CSV_COACHING, {
         download: true, header: true, skipEmptyLines: true,
         complete: (r) => { setCoachingData(processCoaching(r.data, nameMap)); tryFinish() },
+        error: () => tryFinish(),
+      })
+      Papa.parse(CSV_ASSIGNMENT_OBSERVASI, {
+        download: true, header: true, skipEmptyLines: true,
+        complete: (r) => { setObservationAssignmentData(processObservationAssignment(r.data, nameMap)); tryFinish() },
         error: () => tryFinish(),
       })
     }
@@ -1048,6 +1137,13 @@ function Dashboard({ user, accessProfile }) {
 
   function isDirectReport(teacherNick) {
     return accessProfile.directReportNickNames?.has(teacherNick) ?? false
+  }
+
+  function canSeeObservationAssignment(teacherNick) {
+    if (accessProfile.isSuperAdmin) return true
+    if (teacherNick === accessProfile.nickName) return true
+    if (isDirectReport(teacherNick)) return true
+    return false
   }
 
   // ── Teachers list ─────────────────────────────────────────────────────────
@@ -1120,6 +1216,8 @@ function Dashboard({ user, accessProfile }) {
   const piket           = noFilter ? allPiket
     : allPiket.filter(d => canSeeClassForTeacher(selTeacher, d.courseGrade, d.slotName))
 
+  const observationAssignment = observationAssignmentData?.[selTeacher] ?? []
+
   const latestObs  = obsHistory[0] ?? null
   const belowAvg   = classes.filter((c) => c.latest.status?.toUpperCase() === "BELOW AVERAGE").length
   const sortedByS  = [...classes].sort((a, b) => b.latest.deviation - a.latest.deviation)
@@ -1176,6 +1274,7 @@ function Dashboard({ user, accessProfile }) {
       <CoachingModal coaching={activeCoaching} onClose={() => setActiveCoaching(null)} />
       <KelasDitinggalModal data={activeKDModal ? ditinggal : null} onClose={() => setActiveKDModal(false)} />
       <MembantuPiketModal data={activeKPModal ? piket : null} onClose={() => setActiveKPModal(false)} />
+      <ObservationAssignmentModal data={activeObsAssignmentModal ? observationAssignment : null} onClose={() => setActiveObsAssignmentModal(false)} />
 
       {/* ── Header ── */}
       <div className="header">
@@ -1327,58 +1426,118 @@ function Dashboard({ user, accessProfile }) {
               <AdminPanel currentUser={user} />
             ) : (
               <div key={selTeacher} className="view-fade">
-      <div className="two-col">
-        <div className="left-col">
-          <div style={{ display: "flex", gap: 12, marginBottom: 14 }}>
-            <div style={{ flex: 1, background: "#fff", border: "0.5px solid #e2e8f0", borderRadius: 12, padding: "14px 16px", display: "flex", flexDirection: "column", gap: 10 }}>
-              <div style={{ fontSize: 11, color: "#64748b" }}>Slot Performance</div>
-              <div style={{ display: "flex", flexDirection: "row", gap: 14, alignItems: "center" }}>
-                <svg width="75" height="75" viewBox="0 0 62 62">
-                  <circle cx="31" cy="31" r="23" fill="none" stroke="#e2e8f0" strokeWidth="7" />
-                  <circle cx="31" cy="31" r="23" fill="none" stroke="#2563eb" strokeWidth="7"
-                    strokeDasharray={`${classes.length > 0 ? (onTrackCount / classes.length * 144.51).toFixed(2) : 0} 144.51`}
-                    strokeLinecap="round" transform="rotate(-90 31 31)" />
-                  <text x="31" y="35" textAnchor="middle" fontSize="12" fontWeight="500" fill="#1e293b">
-                    {classes.length > 0 ? `${Math.round(onTrackCount / classes.length * 100)}%` : "–"}
-                  </text>
-                </svg>
-                <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
-                  <div style={{ fontSize: 30, fontWeight: 500, color: "#1e293b", lineHeight: 1 }}>{onTrackCount}</div>
-                  <div style={{ fontSize: 13, color: "#94a3b8", lineHeight: 1.4 }}>kelas on avg/exceptional</div>
-                </div>
-              </div>
-              <div style={{ borderTop: "0.5px solid #f1f5f9", paddingTop: 8, fontSize: 11, color: "#64748b" }}>
-                <span style={{ color: belowAvg > 0 ? "#dc2626" : "#16a34a" }}>
-                  {belowAvg > 0 ? `${belowAvg} kelas below avg` : "Semua kelas on avg/exceptional"}
-                </span>
-                {" · "}{classes.length} total kelas
-              </div>
-            </div>
-            <div style={{ flex: 1, background: "#fff", border: "0.5px solid #e2e8f0", borderRadius: 12, padding: "14px 16px", display: "flex", flexDirection: "column", gap: 10 }}>
-              <div style={{ fontSize: 11, color: "#64748b" }}>Observation Result</div>
-              <div style={{ display: "flex", flexDirection: "row", gap: 14, alignItems: "center" }}>
-                <svg width="75" height="75" viewBox="0 0 62 62">
-                  <circle cx="31" cy="31" r="23" fill="none" stroke="#e2e8f0" strokeWidth="7" />
-                  <circle cx="31" cy="31" r="23" fill="none" stroke="#16a34a" strokeWidth="7"
-                    strokeDasharray={`${obsHistory.length > 0 ? (obsPassedCount / obsHistory.length * 144.51).toFixed(2) : 0} 144.51`}
-                    strokeLinecap="round" transform="rotate(-90 31 31)" />
-                  <text x="31" y="35" textAnchor="middle" fontSize="12" fontWeight="500" fill="#1e293b">
-                    {obsHistory.length > 0 ? `${Math.round(obsPassedCount / obsHistory.length * 100)}%` : "–"}
-                  </text>
-                </svg>
-                <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
-                  <div style={{ fontSize: 30, fontWeight: 500, color: "#1e293b", lineHeight: 1 }}>{obsPassedCount}</div>
-                  <div style={{ fontSize: 13, color: "#94a3b8", lineHeight: 1.4 }}>observasi passed</div>
-                </div>
-              </div>
-              <div style={{ borderTop: "0.5px solid #f1f5f9", paddingTop: 8, fontSize: 11, color: "#64748b" }}>
-                <span style={{ color: (obsHistory.length - obsPassedCount) > 0 ? "#d97706" : "#16a34a" }}>
-                  {(obsHistory.length - obsPassedCount) > 0 ? `${obsHistory.length - obsPassedCount} need improvement` : "Semua observasi passed"}
-                </span>
-                {" · "}{obsHistory.length} total obs
-              </div>
+      <div style={{ display: "flex", gap: 12, marginBottom: 14 }}>
+        <div style={{ flex: 1, background: "#fff", border: "0.5px solid #e2e8f0", borderRadius: 12, padding: "14px 16px", display: "flex", flexDirection: "column", gap: 10 }}>
+          <div style={{ fontSize: 11, color: "#64748b" }}>Slot Performance</div>
+          <div style={{ display: "flex", flexDirection: "row", gap: 14, alignItems: "center" }}>
+            <svg width="75" height="75" viewBox="0 0 62 62">
+              <circle cx="31" cy="31" r="23" fill="none" stroke="#e2e8f0" strokeWidth="7" />
+              <circle cx="31" cy="31" r="23" fill="none" stroke="#2563eb" strokeWidth="7"
+                strokeDasharray={`${classes.length > 0 ? (onTrackCount / classes.length * 144.51).toFixed(2) : 0} 144.51`}
+                strokeLinecap="round" transform="rotate(-90 31 31)" />
+              <text x="31" y="35" textAnchor="middle" fontSize="12" fontWeight="500" fill="#1e293b">
+                {classes.length > 0 ? `${Math.round(onTrackCount / classes.length * 100)}%` : "–"}
+              </text>
+            </svg>
+            <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+              <div style={{ fontSize: 30, fontWeight: 500, color: "#1e293b", lineHeight: 1 }}>{onTrackCount}</div>
+              <div style={{ fontSize: 13, color: "#94a3b8", lineHeight: 1.4 }}>kelas on avg/exceptional</div>
             </div>
           </div>
+          <div style={{ borderTop: "0.5px solid #f1f5f9", paddingTop: 8, fontSize: 11, color: "#64748b" }}>
+            <span style={{ color: belowAvg > 0 ? "#dc2626" : "#16a34a" }}>
+              {belowAvg > 0 ? `${belowAvg} kelas below avg` : "Semua kelas on avg/exceptional"}
+            </span>
+            {" · "}{classes.length} total kelas
+          </div>
+        </div>
+        <div style={{ flex: 1, background: "#fff", border: "0.5px solid #e2e8f0", borderRadius: 12, padding: "14px 16px", display: "flex", flexDirection: "column", gap: 10 }}>
+          <div style={{ fontSize: 11, color: "#64748b" }}>Observation Result</div>
+          <div style={{ display: "flex", flexDirection: "row", gap: 14, alignItems: "center" }}>
+            <svg width="75" height="75" viewBox="0 0 62 62">
+              <circle cx="31" cy="31" r="23" fill="none" stroke="#e2e8f0" strokeWidth="7" />
+              <circle cx="31" cy="31" r="23" fill="none" stroke="#16a34a" strokeWidth="7"
+                strokeDasharray={`${obsHistory.length > 0 ? (obsPassedCount / obsHistory.length * 144.51).toFixed(2) : 0} 144.51`}
+                strokeLinecap="round" transform="rotate(-90 31 31)" />
+              <text x="31" y="35" textAnchor="middle" fontSize="12" fontWeight="500" fill="#1e293b">
+                {obsHistory.length > 0 ? `${Math.round(obsPassedCount / obsHistory.length * 100)}%` : "–"}
+              </text>
+            </svg>
+            <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+              <div style={{ fontSize: 30, fontWeight: 500, color: "#1e293b", lineHeight: 1 }}>{obsPassedCount}</div>
+              <div style={{ fontSize: 13, color: "#94a3b8", lineHeight: 1.4 }}>observasi passed</div>
+            </div>
+          </div>
+          <div style={{ borderTop: "0.5px solid #f1f5f9", paddingTop: 8, fontSize: 11, color: "#64748b" }}>
+            <span style={{ color: (obsHistory.length - obsPassedCount) > 0 ? "#d97706" : "#16a34a" }}>
+              {(obsHistory.length - obsPassedCount) > 0 ? `${obsHistory.length - obsPassedCount} need improvement` : "Semua observasi passed"}
+            </span>
+            {" · "}{obsHistory.length} total obs
+          </div>
+        </div>
+        {canSeeObservationAssignment(selTeacher) && (() => {
+          const total = observationAssignment.length
+          const onTimeCount = observationAssignment.filter(a => (a.status || "").toLowerCase() === "on time").length
+          const lateCount = observationAssignment.filter(a => (a.status || "").toLowerCase() === "late").length
+          const notYetCount = total - onTimeCount - lateCount
+          const circ = 144.51
+          const onTimeLen = total > 0 ? (onTimeCount / total) * circ : 0
+          const lateLen = total > 0 ? (lateCount / total) * circ : 0
+          const notYetLen = total > 0 ? (notYetCount / total) * circ : 0
+          const pctOnTime = total > 0 ? Math.round(onTimeCount / total * 100) : 0
+          return (
+            <div
+              style={{ flex: 1, background: "#fff", border: "0.5px solid #e2e8f0", borderRadius: 12, padding: "14px 16px", display: "flex", flexDirection: "column", gap: 10, cursor: total > 0 ? "pointer" : "default" }}
+              onClick={total > 0 ? () => setActiveObsAssignmentModal(true) : undefined}
+            >
+              <div style={{ fontSize: 11, color: "#64748b" }}>Observation Assignment</div>
+              {total === 0 ? (
+                <div style={{ fontSize: 13, color: "#94a3b8", padding: "12px 0" }}>Belum ada penugasan</div>
+              ) : (
+                <>
+                  <div style={{ display: "flex", flexDirection: "row", gap: 14, alignItems: "center" }}>
+                    <svg width="75" height="75" viewBox="0 0 62 62">
+                      <circle cx="31" cy="31" r="23" fill="none" stroke="#e2e8f0" strokeWidth="7" />
+                      <circle cx="31" cy="31" r="23" fill="none" stroke="#639922" strokeWidth="7"
+                        strokeDasharray={`${onTimeLen.toFixed(2)} ${(circ - onTimeLen).toFixed(2)}`}
+                        strokeLinecap="butt" transform="rotate(-90 31 31)" />
+                      <circle cx="31" cy="31" r="23" fill="none" stroke="#E24B4A" strokeWidth="7"
+                        strokeDasharray={`${lateLen.toFixed(2)} ${(circ - lateLen).toFixed(2)}`}
+                        strokeLinecap="butt" transform="rotate(-90 31 31)"
+                        strokeDashoffset={-onTimeLen} />
+                      <circle cx="31" cy="31" r="23" fill="none" stroke="#B4B2A9" strokeWidth="7"
+                        strokeDasharray={`${notYetLen.toFixed(2)} ${(circ - notYetLen).toFixed(2)}`}
+                        strokeLinecap="butt" transform="rotate(-90 31 31)"
+                        strokeDashoffset={-(onTimeLen + lateLen)} />
+                      <text x="31" y="30" textAnchor="middle" fontSize="12" fontWeight="500" fill="#1e293b">{pctOnTime}%</text>
+                      <text x="31" y="41" textAnchor="middle" fontSize="7.5" fill="#94a3b8">on time</text>
+                    </svg>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 5, fontSize: 11, minWidth: 80 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center" }}>
+                        <span style={{ display: "flex", alignItems: "center", gap: 4 }}><span style={{ width: 8, height: 8, borderRadius: "50%", background: "#639922", display: "inline-block", flexShrink: 0 }} />On Time</span>
+                        <span style={{ fontWeight: 500 }}>{onTimeCount}</span>
+                      </div>
+                      <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center" }}>
+                        <span style={{ display: "flex", alignItems: "center", gap: 4 }}><span style={{ width: 8, height: 8, borderRadius: "50%", background: "#E24B4A", display: "inline-block", flexShrink: 0 }} />Late</span>
+                        <span style={{ fontWeight: 500 }}>{lateCount}</span>
+                      </div>
+                      <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center" }}>
+                        <span style={{ display: "flex", alignItems: "center", gap: 4 }}><span style={{ width: 8, height: 8, borderRadius: "50%", background: "#B4B2A9", display: "inline-block", flexShrink: 0 }} />Not Yet</span>
+                        <span style={{ fontWeight: 500 }}>{notYetCount}</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div style={{ borderTop: "0.5px solid #f1f5f9", paddingTop: 8, fontSize: 11, color: "#64748b" }}>
+                    {total} penugasan total
+                  </div>
+                </>
+              )}
+            </div>
+          )
+        })()}
+      </div>
+      <div className="two-col">
+        <div className="left-col">
           <div className="section">
             <div className="sec-head">
               <span className="sec-title">Stickiness index per kelas</span>
@@ -1581,58 +1740,118 @@ function Dashboard({ user, accessProfile }) {
       ) : (
         /* ── Guru biasa: layout tanpa sidebar ── */
         <div className="app-body">
-          <div className="two-col">
-            <div className="left-col">
-              <div style={{ display: "flex", gap: 12, marginBottom: 14 }}>
-                <div style={{ flex: 1, background: "#fff", border: "0.5px solid #e2e8f0", borderRadius: 12, padding: "14px 16px", display: "flex", flexDirection: "column", gap: 10 }}>
-                  <div style={{ fontSize: 11, color: "#64748b" }}>Slot Performance</div>
-                  <div style={{ display: "flex", flexDirection: "row", gap: 14, alignItems: "center" }}>
-                    <svg width="75" height="75" viewBox="0 0 62 62">
-                      <circle cx="31" cy="31" r="23" fill="none" stroke="#e2e8f0" strokeWidth="7" />
-                      <circle cx="31" cy="31" r="23" fill="none" stroke="#2563eb" strokeWidth="7"
-                        strokeDasharray={`${classes.length > 0 ? (onTrackCount / classes.length * 144.51).toFixed(2) : 0} 144.51`}
-                        strokeLinecap="round" transform="rotate(-90 31 31)" />
-                      <text x="31" y="35" textAnchor="middle" fontSize="12" fontWeight="500" fill="#1e293b">
-                        {classes.length > 0 ? `${Math.round(onTrackCount / classes.length * 100)}%` : "–"}
-                      </text>
-                    </svg>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
-                      <div style={{ fontSize: 30, fontWeight: 500, color: "#1e293b", lineHeight: 1 }}>{onTrackCount}</div>
-                      <div style={{ fontSize: 15, color: "#94a3b8", lineHeight: 1.4 }}>kelas on avg/exceptional</div>
-                    </div>
-                  </div>
-                  <div style={{ borderTop: "0.5px solid #f1f5f9", paddingTop: 8, fontSize: 11, color: "#64748b" }}>
-                    <span style={{ color: belowAvg > 0 ? "#dc2626" : "#16a34a" }}>
-                      {belowAvg > 0 ? `${belowAvg} kelas below avg` : "Semua kelas on avg/exceptional"}
-                    </span>
-                    {" · "}{classes.length} total kelas
-                  </div>
-                </div>
-                <div style={{ flex: 1, background: "#fff", border: "0.5px solid #e2e8f0", borderRadius: 12, padding: "14px 16px", display: "flex", flexDirection: "column", gap: 10 }}>
-                  <div style={{ fontSize: 11, color: "#64748b" }}>Observation Result</div>
-                  <div style={{ display: "flex", flexDirection: "row", gap: 14, alignItems: "center" }}>
-                    <svg width="75" height="75" viewBox="0 0 62 62">
-                      <circle cx="31" cy="31" r="23" fill="none" stroke="#e2e8f0" strokeWidth="7" />
-                      <circle cx="31" cy="31" r="23" fill="none" stroke="#16a34a" strokeWidth="7"
-                        strokeDasharray={`${obsHistory.length > 0 ? (obsPassedCount / obsHistory.length * 144.51).toFixed(2) : 0} 144.51`}
-                        strokeLinecap="round" transform="rotate(-90 31 31)" />
-                      <text x="31" y="35" textAnchor="middle" fontSize="12" fontWeight="500" fill="#1e293b">
-                        {obsHistory.length > 0 ? `${Math.round(obsPassedCount / obsHistory.length * 100)}%` : "–"}
-                      </text>
-                    </svg>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
-                      <div style={{ fontSize: 30, fontWeight: 500, color: "#1e293b", lineHeight: 1 }}>{obsPassedCount}</div>
-                      <div style={{ fontSize: 15, color: "#94a3b8", lineHeight: 1.4 }}>observasi passed</div>
-                    </div>
-                  </div>
-                  <div style={{ borderTop: "0.5px solid #f1f5f9", paddingTop: 8, fontSize: 11, color: "#64748b" }}>
-                    <span style={{ color: (obsHistory.length - obsPassedCount) > 0 ? "#d97706" : "#16a34a" }}>
-                      {(obsHistory.length - obsPassedCount) > 0 ? `${obsHistory.length - obsPassedCount} need improvement` : "Semua observasi passed"}
-                    </span>
-                    {" · "}{obsHistory.length} total obs
-                  </div>
+          <div style={{ display: "flex", gap: 12, marginBottom: 14 }}>
+            <div style={{ flex: 1, background: "#fff", border: "0.5px solid #e2e8f0", borderRadius: 12, padding: "14px 16px", display: "flex", flexDirection: "column", gap: 10 }}>
+              <div style={{ fontSize: 11, color: "#64748b" }}>Slot Performance</div>
+              <div style={{ display: "flex", flexDirection: "row", gap: 14, alignItems: "center" }}>
+                <svg width="75" height="75" viewBox="0 0 62 62">
+                  <circle cx="31" cy="31" r="23" fill="none" stroke="#e2e8f0" strokeWidth="7" />
+                  <circle cx="31" cy="31" r="23" fill="none" stroke="#2563eb" strokeWidth="7"
+                    strokeDasharray={`${classes.length > 0 ? (onTrackCount / classes.length * 144.51).toFixed(2) : 0} 144.51`}
+                    strokeLinecap="round" transform="rotate(-90 31 31)" />
+                  <text x="31" y="35" textAnchor="middle" fontSize="12" fontWeight="500" fill="#1e293b">
+                    {classes.length > 0 ? `${Math.round(onTrackCount / classes.length * 100)}%` : "–"}
+                  </text>
+                </svg>
+                <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+                  <div style={{ fontSize: 30, fontWeight: 500, color: "#1e293b", lineHeight: 1 }}>{onTrackCount}</div>
+                  <div style={{ fontSize: 15, color: "#94a3b8", lineHeight: 1.4 }}>kelas on avg/exceptional</div>
                 </div>
               </div>
+              <div style={{ borderTop: "0.5px solid #f1f5f9", paddingTop: 8, fontSize: 11, color: "#64748b" }}>
+                <span style={{ color: belowAvg > 0 ? "#dc2626" : "#16a34a" }}>
+                  {belowAvg > 0 ? `${belowAvg} kelas below avg` : "Semua kelas on avg/exceptional"}
+                </span>
+                {" · "}{classes.length} total kelas
+              </div>
+            </div>
+            <div style={{ flex: 1, background: "#fff", border: "0.5px solid #e2e8f0", borderRadius: 12, padding: "14px 16px", display: "flex", flexDirection: "column", gap: 10 }}>
+              <div style={{ fontSize: 11, color: "#64748b" }}>Observation Result</div>
+              <div style={{ display: "flex", flexDirection: "row", gap: 14, alignItems: "center" }}>
+                <svg width="75" height="75" viewBox="0 0 62 62">
+                  <circle cx="31" cy="31" r="23" fill="none" stroke="#e2e8f0" strokeWidth="7" />
+                  <circle cx="31" cy="31" r="23" fill="none" stroke="#16a34a" strokeWidth="7"
+                    strokeDasharray={`${obsHistory.length > 0 ? (obsPassedCount / obsHistory.length * 144.51).toFixed(2) : 0} 144.51`}
+                    strokeLinecap="round" transform="rotate(-90 31 31)" />
+                  <text x="31" y="35" textAnchor="middle" fontSize="12" fontWeight="500" fill="#1e293b">
+                    {obsHistory.length > 0 ? `${Math.round(obsPassedCount / obsHistory.length * 100)}%` : "–"}
+                  </text>
+                </svg>
+                <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+                  <div style={{ fontSize: 30, fontWeight: 500, color: "#1e293b", lineHeight: 1 }}>{obsPassedCount}</div>
+                  <div style={{ fontSize: 15, color: "#94a3b8", lineHeight: 1.4 }}>observasi passed</div>
+                </div>
+              </div>
+              <div style={{ borderTop: "0.5px solid #f1f5f9", paddingTop: 8, fontSize: 11, color: "#64748b" }}>
+                <span style={{ color: (obsHistory.length - obsPassedCount) > 0 ? "#d97706" : "#16a34a" }}>
+                  {(obsHistory.length - obsPassedCount) > 0 ? `${obsHistory.length - obsPassedCount} need improvement` : "Semua observasi passed"}
+                </span>
+                {" · "}{obsHistory.length} total obs
+              </div>
+            </div>
+            {canSeeObservationAssignment(selTeacher) && (() => {
+              const total = observationAssignment.length
+              const onTimeCount = observationAssignment.filter(a => (a.status || "").toLowerCase() === "on time").length
+              const lateCount = observationAssignment.filter(a => (a.status || "").toLowerCase() === "late").length
+              const notYetCount = total - onTimeCount - lateCount
+              const circ = 144.51
+              const onTimeLen = total > 0 ? (onTimeCount / total) * circ : 0
+              const lateLen = total > 0 ? (lateCount / total) * circ : 0
+              const notYetLen = total > 0 ? (notYetCount / total) * circ : 0
+              const pctOnTime = total > 0 ? Math.round(onTimeCount / total * 100) : 0
+              return (
+                <div
+                  style={{ flex: 1, background: "#fff", border: "0.5px solid #e2e8f0", borderRadius: 12, padding: "14px 16px", display: "flex", flexDirection: "column", gap: 10, cursor: total > 0 ? "pointer" : "default" }}
+                  onClick={total > 0 ? () => setActiveObsAssignmentModal(true) : undefined}
+                >
+                  <div style={{ fontSize: 11, color: "#64748b" }}>Observation Assignment</div>
+                  {total === 0 ? (
+                    <div style={{ fontSize: 13, color: "#94a3b8", padding: "12px 0" }}>Belum ada penugasan</div>
+                  ) : (
+                    <>
+                      <div style={{ display: "flex", flexDirection: "row", gap: 14, alignItems: "center" }}>
+                        <svg width="75" height="75" viewBox="0 0 62 62">
+                          <circle cx="31" cy="31" r="23" fill="none" stroke="#e2e8f0" strokeWidth="7" />
+                          <circle cx="31" cy="31" r="23" fill="none" stroke="#639922" strokeWidth="7"
+                            strokeDasharray={`${onTimeLen.toFixed(2)} ${(circ - onTimeLen).toFixed(2)}`}
+                            strokeLinecap="butt" transform="rotate(-90 31 31)" />
+                          <circle cx="31" cy="31" r="23" fill="none" stroke="#E24B4A" strokeWidth="7"
+                            strokeDasharray={`${lateLen.toFixed(2)} ${(circ - lateLen).toFixed(2)}`}
+                            strokeLinecap="butt" transform="rotate(-90 31 31)"
+                            strokeDashoffset={-onTimeLen} />
+                          <circle cx="31" cy="31" r="23" fill="none" stroke="#B4B2A9" strokeWidth="7"
+                            strokeDasharray={`${notYetLen.toFixed(2)} ${(circ - notYetLen).toFixed(2)}`}
+                            strokeLinecap="butt" transform="rotate(-90 31 31)"
+                            strokeDashoffset={-(onTimeLen + lateLen)} />
+                          <text x="31" y="30" textAnchor="middle" fontSize="12" fontWeight="500" fill="#1e293b">{pctOnTime}%</text>
+                          <text x="31" y="41" textAnchor="middle" fontSize="7.5" fill="#94a3b8">on time</text>
+                        </svg>
+                        <div style={{ display: "flex", flexDirection: "column", gap: 5, fontSize: 11, minWidth: 80 }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center" }}>
+                            <span style={{ display: "flex", alignItems: "center", gap: 4 }}><span style={{ width: 8, height: 8, borderRadius: "50%", background: "#639922", display: "inline-block", flexShrink: 0 }} />On Time</span>
+                            <span style={{ fontWeight: 500 }}>{onTimeCount}</span>
+                          </div>
+                          <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center" }}>
+                            <span style={{ display: "flex", alignItems: "center", gap: 4 }}><span style={{ width: 8, height: 8, borderRadius: "50%", background: "#E24B4A", display: "inline-block", flexShrink: 0 }} />Late</span>
+                            <span style={{ fontWeight: 500 }}>{lateCount}</span>
+                          </div>
+                          <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center" }}>
+                            <span style={{ display: "flex", alignItems: "center", gap: 4 }}><span style={{ width: 8, height: 8, borderRadius: "50%", background: "#B4B2A9", display: "inline-block", flexShrink: 0 }} />Not Yet</span>
+                            <span style={{ fontWeight: 500 }}>{notYetCount}</span>
+                          </div>
+                        </div>
+                      </div>
+                      <div style={{ borderTop: "0.5px solid #f1f5f9", paddingTop: 8, fontSize: 11, color: "#64748b" }}>
+                        {total} penugasan total
+                      </div>
+                    </>
+                  )}
+                </div>
+              )
+            })()}
+          </div>
+          <div className="two-col">
+            <div className="left-col">
               <div className="section">
                 <div className="sec-head">
                   <span className="sec-title">Stickiness index per kelas</span>
