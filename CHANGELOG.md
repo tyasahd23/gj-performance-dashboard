@@ -5,6 +5,21 @@ Semua perubahan penting pada project ini didokumentasikan di file ini.
 Format berdasarkan [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
+
+## [0.2.0] - 2026-06-16
+### Added
+- **Fitur Observation Assignment** — penugasan observasi kelas untuk GJ Level 3 & 4.
+  - CSV baru `CSV_ASSIGNMENT_OBSERVASI` (`gid=1134271417`) di-fetch paralel bersama CSV lainnya via Papaparse.
+  - Fungsi `processObservationAssignment(rows, nameMap)`: group by observer nick name, sort deadline descending. Normalisasi nama observer dengan strip karakter `'` sebelum lookup ke `nameMap` (menangani mismatch "A'yuna" vs "Ayuna").
+  - Access gate baru `canSeeObservationAssignment(teacherNick)`: hanya GJ itu sendiri, direct manager-nya, atau super admin yang bisa melihat — POD/STEM/Science Lead yang bukan direct manager tidak bisa.
+  - KPI card **Observation Assignment** (donut 3 segmen: On Time hijau, Late merah, Not Yet abu) ditampilkan full-width sejajar dengan Slot Performance dan Observation Result.
+    - Persentase On Time di tengah donut, legend 3 baris di samping.
+    - Empty state: `"Tidak ada assignment"` untuk GJ level 1–2 (tidak mendapat penugasan), `"Belum ada assignment"` untuk GJ level 3–4 (belum ada data).
+  - Modal `ObservationAssignmentModal`: list assignment diurutkan terbaru ke terlama, badge status berwarna (On Time / Late / Not Yet), link class recording (fallback "Belum tersedia").
+  - Supabase fetch `v_users_full` ditambah kolom `level` untuk menentukan teks empty state per teacher.
+
+### Changed
+- **Layout teacher detail** (manager view & GJ view): 3 KPI card (Slot Performance, Observation Result, Observation Assignment) kini ditampilkan **full-width** sejajar di atas, bukan di dalam kolom kiri. Kolom kiri sekarang berisi Stickiness dan Tren saja; kolom kanan tetap (Riwayat Observasi, Coaching, Kehadiran, Cuti).
 ### Added
 - Filter frontend untuk data stickiness (tidak mengubah sumber data):
   - Exclude kelas dengan `slot_name` mengandung "matematika lanjut" atau "fisika dan kimia" (case-insensitive) dari tabel stickiness, line chart, dan overview heatmap.

@@ -19,7 +19,6 @@ const SUPER_ADMIN_EMAILS = new Set([
   "fatah.abdul@colearn.id",
   "anatasya.ellena@colearn.id",
   "ima.aruan@colearn.id",
-  "tyas.ahadriansya@colearn.id",
 ])
 
 const ADMIN_EMAILS = new Set([
