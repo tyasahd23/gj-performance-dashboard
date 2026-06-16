@@ -670,10 +670,10 @@ function ObservationAssignmentModal({ data, onClose }) {
             data.map((d, i) => (
               <div key={i} className="obs-item">
                 <div className="obs-top">
-                  <div className="obs-left" style={{ flex: 1 }}>
+                  <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 2 }}>
                     <div style={{ fontWeight: 600, fontSize: 13, color: "#1e293b" }}>{d.teacher}</div>
-                    <div style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>{d.slot}</div>
-                    <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 3, display: "flex", gap: 10, flexWrap: "wrap" }}>
+                    <div style={{ fontSize: 12, color: "#64748b" }}>{d.slot}</div>
+                    <div style={{ fontSize: 11, color: "#94a3b8", display: "flex", gap: 10, flexWrap: "wrap", marginTop: 1 }}>
                       <span>Tanggal kelas: {formatDate(d.dateOfClass)}</span>
                       <span>Ditugaskan: {formatDate(d.assignedDate)}</span>
                     </div>
@@ -1037,7 +1037,7 @@ function Dashboard({ user, accessProfile }) {
       const tryFinish = () => { done++; if (done === 5) setLoading(false) }
 
       supabase.from("v_users_full")
-        .select("nick_name, full_name, url_photo, role, main_pod, direct_manager_nama")
+        .select("nick_name, full_name, url_photo, role, main_pod, direct_manager_nama, level")
         .then(({ data }) => {
           if (data) {
             const profileMap = {}
@@ -1048,6 +1048,7 @@ function Dashboard({ user, accessProfile }) {
                 role:     u.role                || "",
                 pod:      u.main_pod            || "",
                 manager:  u.direct_manager_nama || "",
+                level:    u.level               ?? null,
               }
             })
             setTeacherProfiles(profileMap)
@@ -1487,6 +1488,8 @@ function Dashboard({ user, accessProfile }) {
           const lateLen = total > 0 ? (lateCount / total) * circ : 0
           const notYetLen = total > 0 ? (notYetCount / total) * circ : 0
           const pctOnTime = total > 0 ? Math.round(onTimeCount / total * 100) : 0
+          const teacherLevel = teacherProfiles[selTeacher]?.level ?? null
+          const emptyText = teacherLevel !== null && teacherLevel <= 2 ? "Tidak ada assignment" : "Belum ada assignment"
           return (
             <div
               style={{ flex: 1, background: "#fff", border: "0.5px solid #e2e8f0", borderRadius: 12, padding: "14px 16px", display: "flex", flexDirection: "column", gap: 10, cursor: total > 0 ? "pointer" : "default" }}
@@ -1494,7 +1497,7 @@ function Dashboard({ user, accessProfile }) {
             >
               <div style={{ fontSize: 11, color: "#64748b" }}>Observation Assignment</div>
               {total === 0 ? (
-                <div style={{ fontSize: 13, color: "#94a3b8", padding: "12px 0" }}>Belum ada penugasan</div>
+                <div style={{ fontSize: 13, color: "#94a3b8", padding: "12px 0" }}>{emptyText}</div>
               ) : (
                 <>
                   <div style={{ display: "flex", flexDirection: "row", gap: 14, alignItems: "center" }}>
@@ -1801,6 +1804,8 @@ function Dashboard({ user, accessProfile }) {
               const lateLen = total > 0 ? (lateCount / total) * circ : 0
               const notYetLen = total > 0 ? (notYetCount / total) * circ : 0
               const pctOnTime = total > 0 ? Math.round(onTimeCount / total * 100) : 0
+              const teacherLevel = teacherProfiles[selTeacher]?.level ?? null
+              const emptyText = teacherLevel !== null && teacherLevel <= 2 ? "Tidak ada assignment" : "Belum ada assignment"
               return (
                 <div
                   style={{ flex: 1, background: "#fff", border: "0.5px solid #e2e8f0", borderRadius: 12, padding: "14px 16px", display: "flex", flexDirection: "column", gap: 10, cursor: total > 0 ? "pointer" : "default" }}
@@ -1808,7 +1813,7 @@ function Dashboard({ user, accessProfile }) {
                 >
                   <div style={{ fontSize: 11, color: "#64748b" }}>Observation Assignment</div>
                   {total === 0 ? (
-                    <div style={{ fontSize: 13, color: "#94a3b8", padding: "12px 0" }}>Belum ada penugasan</div>
+                    <div style={{ fontSize: 13, color: "#94a3b8", padding: "12px 0" }}>{emptyText}</div>
                   ) : (
                     <>
                       <div style={{ display: "flex", flexDirection: "row", gap: 14, alignItems: "center" }}>
