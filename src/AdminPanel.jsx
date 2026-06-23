@@ -74,7 +74,7 @@ function EditModal({ user, allUsers, currentUserId, onClose, onSaved }) {
 
   async function handleSave() {
     if (!form.level || !form.role || !form.main_pod) {
-      setError("Level, role, dan main pod wajib diisi."); return
+      setError("Level, role, and main pod are required."); return
     }
     setSaving(true); setError(null)
     try {
@@ -94,7 +94,7 @@ function EditModal({ user, allUsers, currentUserId, onClose, onSaved }) {
 
       onSaved(); onClose()
     } catch (e) {
-      setError(e.message || "Gagal menyimpan.")
+      setError(e.message || "Failed to save.")
     } finally { setSaving(false) }
   }
 
@@ -110,26 +110,26 @@ function EditModal({ user, allUsers, currentUserId, onClose, onSaved }) {
         </div>
         <div style={mBodyStyle}>
           <div style={row2}>
-            <Field label="Nama Panggilan">
+            <Field label="Nickname">
               <Input value={user.nick_name ?? ""} disabled />
             </Field>
-            <Field label="Nama Lengkap">
+            <Field label="Full Name">
               <Input value={user.full_name ?? ""} disabled />
             </Field>
           </div>
-          <Field label="Email CoLearn">
+          <Field label="CoLearn Email">
             <Input value={user.email} disabled />
           </Field>
           <div style={row2}>
             <Field label="Level *">
               <select value={form.level} onChange={e => handleLevel(e.target.value)} style={sel}>
-                <option value="">Pilih level...</option>
+                <option value="">Select level...</option>
                 {[1,2,3,4].map(l => <option key={l} value={l}>Level {l}</option>)}
               </select>
             </Field>
             <Field label="Role *">
               <select value={form.role} onChange={e => set("role", e.target.value)} style={{ ...sel, opacity: !form.level ? 0.5 : 1 }} disabled={!form.level}>
-                <option value="">Pilih role...</option>
+                <option value="">Select role...</option>
                 {roleOpts.map(r => <option key={r}>{r}</option>)}
               </select>
             </Field>
@@ -137,7 +137,7 @@ function EditModal({ user, allUsers, currentUserId, onClose, onSaved }) {
           <div style={row2}>
             <Field label="Main Pod *">
               <select value={form.main_pod} onChange={e => set("main_pod", e.target.value)} style={sel}>
-                <option value="">Pilih pod...</option>
+                <option value="">Select pod...</option>
                 <optgroup label="SD">{["Grade 4","Grade 5","Grade 6"].map(p=><option key={p}>{p}</option>)}</optgroup>
                 <optgroup label="SMP">{["Grade 7","Grade 8","Grade 9"].map(p=><option key={p}>{p}</option>)}</optgroup>
                 <optgroup label="SMA">{["Grade 10","Grade 11","Grade 12"].map(p=><option key={p}>{p}</option>)}</optgroup>
@@ -151,9 +151,9 @@ function EditModal({ user, allUsers, currentUserId, onClose, onSaved }) {
           {error && <div style={errBox}>{error}</div>}
         </div>
         <div style={mFooterStyle}>
-          <button style={btnGhost} onClick={onClose} disabled={saving}>Batal</button>
+          <button style={btnGhost} onClick={onClose} disabled={saving}>Cancel</button>
           <button style={{ ...btnPrimary, opacity: saving ? 0.6 : 1 }} onClick={handleSave} disabled={saving}>
-            {saving ? "Menyimpan..." : "Simpan"}
+            {saving ? "Saving..." : "Save"}
           </button>
         </div>
       </div>
@@ -235,7 +235,7 @@ function ManagerCombobox({ value, onChange, options }) {
           onChange={handleInput}
           onBlur={handleBlur}
           onFocus={() => { if (query.length > 0) setOpen(true) }}
-          placeholder="Ketik nama atau email..."
+          placeholder="Type name or email..."
           style={{ ...sel, paddingRight: value ? 28 : 10 }}
         />
         {value && (
@@ -317,7 +317,7 @@ export default function AdminPanel({ currentUser }) {
     setLoading(true); setError(null)
     const { data, error: err } = await supabase
       .from("v_users_full").select("*").order("full_name")
-    if (err) setError("Gagal memuat: " + err.message)
+    if (err) setError("Failed to load: " + err.message)
     else setUsers(data ?? [])
     setLoading(false)
   }
@@ -365,26 +365,26 @@ export default function AdminPanel({ currentUser }) {
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ flexShrink: 0, color: "#94a3b8" }}>
               <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
             </svg>
-            <input className="sidebar-search" placeholder="Cari nama atau email..."
+            <input className="sidebar-search" placeholder="Search name or email..."
               value={search} onChange={e => handleSearch(e.target.value)} />
           </div>
           {/* Filter level */}
           <select value={filterLevel} onChange={e => handleFilterLevel(e.target.value)}
             style={{ ...sel, width: "auto", padding: "5px 8px", fontSize: 11 }}>
-            <option value="">Semua level</option>
+            <option value="">All levels</option>
             {[1,2,3,4].map(l => <option key={l} value={l}>Level {l}</option>)}
           </select>
           {/* Filter pod */}
           <select value={filterPod} onChange={e => handleFilterPod(e.target.value)}
             style={{ ...sel, width: "auto", padding: "5px 8px", fontSize: 11 }}>
-            <option value="">Semua pod</option>
+            <option value="">All pods</option>
             {["Grade 4","Grade 5","Grade 6","Grade 7","Grade 8","Grade 9","Grade 10","Grade 11","Grade 12","Science"].map(p =>
               <option key={p}>{p}</option>)}
           </select>
         </div>
       </div>
 
-      {loading && <div className="loading" style={{ padding: "40px 0" }}>Memuat data user...</div>}
+      {loading && <div className="loading" style={{ padding: "40px 0" }}>Loading user data...</div>}
       {error   && <div style={{ fontSize: 12, color: "#dc2626", padding: "12px 0" }}>{error}</div>}
 
       {!loading && !error && (
@@ -398,12 +398,12 @@ export default function AdminPanel({ currentUser }) {
                 <th style={{ textAlign: "left",  padding: "10px 12px", fontSize: 11, color: "#94a3b8", fontWeight: 400, borderBottom: "0.5px solid #f1f5f9", width: "10%" }}>POD</th>
                 <th style={{ textAlign: "left",  padding: "10px 12px", fontSize: 11, color: "#94a3b8", fontWeight: 400, borderBottom: "0.5px solid #f1f5f9", width: "24%" }}>EMAIL</th>
                 <th style={{ textAlign: "left",  padding: "10px 12px", fontSize: 11, color: "#94a3b8", fontWeight: 400, borderBottom: "0.5px solid #f1f5f9", width: "13%" }}>MANAGER</th>
-                <th style={{ textAlign: "right", padding: "10px 12px", fontSize: 11, color: "#94a3b8", fontWeight: 400, borderBottom: "0.5px solid #f1f5f9", width: "12%" }}>AKSI</th>
+                <th style={{ textAlign: "right", padding: "10px 12px", fontSize: 11, color: "#94a3b8", fontWeight: 400, borderBottom: "0.5px solid #f1f5f9", width: "12%" }}>ACTIONS</th>
               </tr>
             </thead>
             <tbody>
               {filtered.length === 0 && (
-                <tr><td colSpan={7} style={{ textAlign: "center", color: "#94a3b8", padding: "24px 0" }}>Tidak ada user yang cocok.</td></tr>
+                <tr><td colSpan={7} style={{ textAlign: "center", color: "#94a3b8", padding: "24px 0" }}>No matching users found.</td></tr>
               )}
               {pageRows.map(u => (
                 <tr key={u.id} className="row">
@@ -437,7 +437,7 @@ export default function AdminPanel({ currentUser }) {
           {totalPages > 1 && (
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 12px", borderTop: "0.5px solid #f1f5f9" }}>
               <span style={{ fontSize: 12, color: "#64748b" }}>
-                {(safePage - 1) * PAGE_SIZE + 1}–{Math.min(safePage * PAGE_SIZE, filtered.length)} dari {filtered.length} user
+                {(safePage - 1) * PAGE_SIZE + 1}–{Math.min(safePage * PAGE_SIZE, filtered.length)} of {filtered.length} users
               </span>
               <div style={{ display: "flex", gap: 4 }}>
                 <button

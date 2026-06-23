@@ -19,6 +19,7 @@ const SUPER_ADMIN_EMAILS = new Set([
   "fatah.abdul@colearn.id",
   "anatasya.ellena@colearn.id",
   "ima.aruan@colearn.id",
+  "tyas.ahadriansya@colearn.id",
 ])
 
 const ADMIN_EMAILS = new Set([
@@ -387,11 +388,11 @@ function CutiBar({ count, dates, maks }) {
         <div className="cuti-bar-fill" style={{ width: `${pct}%`, background: color }} />
       </div>
       <span className="cuti-count">{safeCount}/{maks}</span>
-      {safeCount >= maks && <span className="badge b-bw" style={{ fontSize: 10 }}>Batas tercapai</span>}
-      {safeCount < maks && hampir && <span className="badge b-need" style={{ fontSize: 10 }}>Hampir batas</span>}
+      {safeCount >= maks && <span className="badge b-bw" style={{ fontSize: 10 }}>Limit reached</span>}
+      {safeCount < maks && hampir && <span className="badge b-need" style={{ fontSize: 10 }}>Near limit</span>}
       {show && dates.length > 0 && (
         <div className="cuti-tooltip">
-          <div className="cuti-tooltip-title">Tanggal ditinggalkan</div>
+          <div className="cuti-tooltip-title">Dates left</div>
           {dates.map((d, i) => <div key={i} className="cuti-tooltip-date">{formatDate(d)}</div>)}
         </div>
       )}
@@ -416,11 +417,11 @@ function ObsModal({ obs, onClose }) {
         </div>
         <div className="va-meta-strip obs-meta-strip">
           <div className="va-meta-cell">
-            <div className="va-meta-label">Tanggal Observasi</div>
+            <div className="va-meta-label">Observation Date</div>
             <div className="va-meta-value">{formatDate(obs.observationDate)}</div>
           </div>
           <div className="va-meta-cell">
-            <div className="va-meta-label">Tanggal Kelas</div>
+            <div className="va-meta-label">Class Date</div>
             <div className="va-meta-value">{formatDate(obs.classDate)}</div>
           </div>
         </div>
@@ -437,23 +438,23 @@ function ObsModal({ obs, onClose }) {
         <div className="modal-body">
           <div className="modal-block">
             <div className="modal-block-title"><div className="dot dot-red" />Need improvement — Critical</div>
-            {obs.needImproveCritical ? <p className="modal-text" style={{ whiteSpace: "pre-wrap" }}>{obs.needImproveCritical}</p> : <p className="modal-empty">Tidak ada poin critical yang perlu diperbaiki.</p>}
+            {obs.needImproveCritical ? <p className="modal-text" style={{ whiteSpace: "pre-wrap" }}>{obs.needImproveCritical}</p> : <p className="modal-empty">No critical points to improve.</p>}
           </div>
           <div className="modal-block">
             <div className="modal-block-title"><div className="dot dot-amber" />Need improvement — Important</div>
-            {obs.needImproveImportant ? <p className="modal-text" style={{ whiteSpace: "pre-wrap" }}>{obs.needImproveImportant}</p> : <p className="modal-empty">Tidak ada poin important yang perlu diperbaiki.</p>}
+            {obs.needImproveImportant ? <p className="modal-text" style={{ whiteSpace: "pre-wrap" }}>{obs.needImproveImportant}</p> : <p className="modal-empty">No important points to improve.</p>}
           </div>
           <div className="modal-block">
-            <div className="modal-block-title"><div className="dot dot-blue" />Catatan observer</div>
-            {obs.notes ? <p className="modal-text" style={{ whiteSpace: "pre-wrap" }}>{obs.notes}</p> : <p className="modal-empty">Tidak ada catatan tambahan.</p>}
+            <div className="modal-block-title"><div className="dot dot-blue" />Observer notes</div>
+            {obs.notes ? <p className="modal-text" style={{ whiteSpace: "pre-wrap" }}>{obs.notes}</p> : <p className="modal-empty">No additional notes.</p>}
           </div>
         </div>
         <div className="modal-footer" style={{ justifyContent: "space-between" }}>
           {obs.recordingUrl
-            ? <a className="va-meta-link" href={obs.recordingUrl} target="_blank" rel="noopener noreferrer">Buka recording →</a>
+            ? <a className="va-meta-link" href={obs.recordingUrl} target="_blank" rel="noopener noreferrer">Open recording →</a>
             : <span />
           }
-          <button className="btn-close" onClick={onClose}>Tutup</button>
+          <button className="btn-close" onClick={onClose}>Close</button>
         </div>
       </div>
     </div>
@@ -476,7 +477,7 @@ function CoachingModal({ coaching, onClose }) {
   const isObs      = tipe.includes("Observasi")
   const isTemuan   = tipe.includes("Temuan")
   const badgeClass = isObs ? "b-obs" : isTemuan ? "b-tem" : "b-av"
-  const critLabel  = isTemuan ? "Department Pemohon" : "Critical point"
+  const critLabel  = isTemuan ? "Requesting Department" : "Critical point"
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
@@ -498,18 +499,18 @@ function CoachingModal({ coaching, onClose }) {
         {/* Meta strip: 3 kolom — tanggal kelas · tanggal coaching · rekaman */}
         <div className="va-meta-strip">
           <div className="va-meta-cell">
-            <div className="va-meta-label">Tanggal Kelas</div>
+            <div className="va-meta-label">Class Date</div>
             <div className="va-meta-value">{formatDate(coaching.tanggalKelas)}</div>
           </div>
           <div className="va-meta-cell">
-            <div className="va-meta-label">Tanggal Coaching</div>
+            <div className="va-meta-label">Coaching Date</div>
             <div className="va-meta-value">{formatDate(coaching.dateCoaching)}</div>
           </div>
           <div className="va-meta-cell">
-            <div className="va-meta-label">Rekaman Sesi</div>
+            <div className="va-meta-label">Session Recording</div>
             {coaching.linkRecording
-              ? <a className="va-meta-link" href={coaching.linkRecording} target="_blank" rel="noopener noreferrer">Buka recording →</a>
-              : <span className="va-block-empty">Tidak ada</span>
+              ? <a className="va-meta-link" href={coaching.linkRecording} target="_blank" rel="noopener noreferrer">Open recording →</a>
+              : <span className="va-block-empty">—</span>
             }
           </div>
         </div>
@@ -520,41 +521,41 @@ function CoachingModal({ coaching, onClose }) {
             <div className="va-block-title"><span className="va-dot" style={{ background: "#ef4444" }} />{critLabel}</div>
             {coaching.criticalPoint
               ? <div className="va-block-text" style={{ whiteSpace: "pre-wrap" }}>{coaching.criticalPoint}</div>
-              : <div className="va-block-empty">Tidak ada data.</div>
+              : <div className="va-block-empty">No data available.</div>
             }
           </div>
           <div className="va-block">
-            <div className="va-block-title"><span className="va-dot" style={{ background: "#f59e0b" }} />Poin penting</div>
+            <div className="va-block-title"><span className="va-dot" style={{ background: "#f59e0b" }} />Key points</div>
             {coaching.poinPenting
               ? <div className="va-block-text" style={{ whiteSpace: "pre-wrap" }}>{coaching.poinPenting}</div>
-              : <div className="va-block-empty">Tidak ada poin penting.</div>
+              : <div className="va-block-empty">No key points.</div>
             }
           </div>
           <div className="va-block">
-            <div className="va-block-title"><span className="va-dot" style={{ background: "#3b82f6" }} />Langkah tindakan</div>
+            <div className="va-block-title"><span className="va-dot" style={{ background: "#3b82f6" }} />Action steps</div>
             {coaching.langkahTindakan
               ? <div className="va-block-text" style={{ whiteSpace: "pre-wrap" }}>{coaching.langkahTindakan}</div>
-              : <div className="va-block-empty">Tidak ada langkah tindakan.</div>
+              : <div className="va-block-empty">No action steps.</div>
             }
           </div>
           <div className="va-block">
-            <div className="va-block-title"><span className="va-dot" style={{ background: "#16a34a" }} />Komentar coach</div>
+            <div className="va-block-title"><span className="va-dot" style={{ background: "#16a34a" }} />Coach's notes</div>
             {coaching.komentarCoach
               ? <div className="va-block-text" style={{ whiteSpace: "pre-wrap" }}>{coaching.komentarCoach}</div>
-              : <div className="va-block-empty">Tidak ada komentar.</div>
+              : <div className="va-block-empty">No notes.</div>
             }
           </div>
           <div className="va-block">
-            <div className="va-block-title"><span className="va-dot" style={{ background: "#8b5cf6" }} />Komentar lain</div>
+            <div className="va-block-title"><span className="va-dot" style={{ background: "#8b5cf6" }} />Additional notes</div>
             {coaching.komentarLain
               ? <div className="va-block-text" style={{ whiteSpace: "pre-wrap" }}>{coaching.komentarLain}</div>
-              : <div className="va-block-empty">Tidak ada komentar lain.</div>
+              : <div className="va-block-empty">No additional notes.</div>
             }
           </div>
         </div>
 
         <div className="va-footer">
-          <button className="btn-close" onClick={onClose}>Tutup</button>
+          <button className="btn-close" onClick={onClose}>Close</button>
         </div>
       </div>
     </div>
@@ -574,7 +575,7 @@ function KelasDitinggalRow({ d }) {
         <span className={`badge ${badgeClass}`}>{d.reason}</span>
       </div>
       {d.note && (
-        <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 6, lineHeight: 1.5 }}>{d.note}</div>
+        <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 6, marginLeft: 66, lineHeight: 1.5, textAlign: "left" }}>{d.note}</div>
       )}
     </div>
   )
@@ -587,18 +588,18 @@ function KelasDitinggalModal({ data, onClose }) {
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <div className="modal-meta">
-            <div className="modal-class">Kelas Ditinggal</div>
+            <div className="modal-class">Missed Class</div>
           </div>
         </div>
         <div className="modal-body">
           {data.length === 0 ? (
-            <p className="modal-empty">Tidak ada data kelas ditinggal.</p>
+            <p className="modal-empty">No missed class data.</p>
           ) : (
             data.map((d, i) => <KelasDitinggalRow key={i} d={d} />)
           )}
         </div>
         <div className="modal-footer">
-          <button className="btn-close" onClick={onClose}>Tutup</button>
+          <button className="btn-close" onClick={onClose}>Close</button>
         </div>
       </div>
     </div>
@@ -612,12 +613,12 @@ function MembantuPiketModal({ data, onClose }) {
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <div className="modal-meta">
-            <div className="modal-class">Membantu Piket</div>
+            <div className="modal-class">Piket Help</div>
           </div>
         </div>
         <div className="modal-body">
           {data.length === 0 ? (
-            <p className="modal-empty">Tidak ada data membantu piket.</p>
+            <p className="modal-empty">No piket-help data.</p>
           ) : (
             data.map((d, i) => (
               <div key={i} className="obs-item">
@@ -626,7 +627,7 @@ function MembantuPiketModal({ data, onClose }) {
                     <div className="obs-date">{formatDate(d.date)}</div>
                     {d.classRule && <span className="badge b-pass">{d.classRule}</span>}
                     <div className="obs-class">{d.className}</div>
-                    <div className="obs-observer">Ganti {d.teacherName}</div>
+                    <div className="obs-observer">Covering for {d.teacherName}</div>
                   </div>
                   <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
                     <span className={`badge ${d.reason === "cuti" ? "b-bw" : d.reason === "sakit" ? "b-info" : "b-av"}`}>
@@ -639,7 +640,7 @@ function MembantuPiketModal({ data, onClose }) {
           )}
         </div>
         <div className="modal-footer">
-          <button className="btn-close" onClick={onClose}>Tutup</button>
+          <button className="btn-close" onClick={onClose}>Close</button>
         </div>
       </div>
     </div>
@@ -664,7 +665,7 @@ function ObservationAssignmentModal({ data, onClose }) {
         </div>
         <div className="modal-body">
           {data.length === 0 ? (
-            <p className="modal-empty">Belum ada penugasan.</p>
+            <p className="modal-empty">No assignments yet.</p>
           ) : (
             data.map((d, i) => (
               <div key={i} className="obs-item">
@@ -673,8 +674,8 @@ function ObservationAssignmentModal({ data, onClose }) {
                     <div style={{ fontWeight: 600, fontSize: 13, color: "#1e293b" }}>{d.teacher}</div>
                     <div style={{ fontSize: 12, color: "#64748b" }}>{d.slot}</div>
                     <div style={{ fontSize: 11, color: "#94a3b8", display: "flex", gap: 10, flexWrap: "wrap", marginTop: 1 }}>
-                      <span>Tanggal kelas: {formatDate(d.dateOfClass)}</span>
-                      <span>Ditugaskan: {formatDate(d.assignedDate)}</span>
+                      <span>Class date: {formatDate(d.dateOfClass)}</span>
+                      <span>Assigned: {formatDate(d.assignedDate)}</span>
                     </div>
                   </div>
                   <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4, flexShrink: 0 }}>
@@ -684,7 +685,7 @@ function ObservationAssignmentModal({ data, onClose }) {
                     <div style={{ fontSize: 11, color: "#64748b" }}>Deadline: {formatDate(d.deadline)}</div>
                     {d.link
                       ? <a className="va-meta-link" href={d.link} target="_blank" rel="noopener noreferrer" style={{ fontSize: 11 }}>Class recording →</a>
-                      : <span style={{ fontSize: 11, color: "#94a3b8" }}>Belum tersedia</span>
+                      : <span style={{ fontSize: 11, color: "#94a3b8" }}>Not available yet</span>
                     }
                   </div>
                 </div>
@@ -693,7 +694,7 @@ function ObservationAssignmentModal({ data, onClose }) {
           )}
         </div>
         <div className="modal-footer">
-          <button className="btn-close" onClick={onClose}>Tutup</button>
+          <button className="btn-close" onClick={onClose}>Close</button>
         </div>
       </div>
     </div>
@@ -731,8 +732,8 @@ function GuruAmanBanner({ teachers, onSelectTeacher }) {
             <path d="M23 21v-1a5 5 0 0 0-5-5h-2a5 5 0 0 0-5 5v1" />
           </svg>
           <div className="gab-text">
-            <span className="gab-title">{teachers.length} Guru Juara — semua kelas aman</span>
-            <span className="gab-sub">Tidak ada kelas below average</span>
+            <span className="gab-title">{teachers.length} Guru Juara — all classes clear</span>
+            <span className="gab-sub">No classes below average</span>
           </div>
         </div>
         {/* chevron */}
@@ -853,52 +854,52 @@ function Overview({ stickinessData, observasiData, teachers, onSelectTeacher, fi
       {/* KPI */}
       <div className="cards-row">
         <div className="card">
-          <div className="card-label">Guru Juara perlu perhatian</div>
+          <div className="card-label">Guru Juara needing attention</div>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <div className={`card-value ${colorWithIssue}`}>{withIssue.length}</div>
             <span className={`badge card-badge ${badgeWithIssue}`}>{pctWithIssue}%</span>
           </div>
-          <div className="card-sub">dari {teachers.length} Guru Juara aktif</div>
+          <div className="card-sub">out of {teachers.length} active Guru Juara</div>
         </div>
         <div className="card">
-          <div className="card-label">Kelas below average</div>
+          <div className="card-label">Classes below average</div>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <div className={`card-value ${colorBelowAvg}`}>{totalBelowAvg}</div>
             <span className={`badge card-badge ${badgeBelowAvg}`}>{pctBelowAvg}% dari total</span>
           </div>
-          <div className="card-sub">dari {totalClasses} kelas</div>
+          <div className="card-sub">out of {totalClasses} classes</div>
         </div>
         <div className="card">
-          <div className="card-label">Below average ≥ 3 minggu</div>
+          <div className="card-label">Below average ≥ 3 weeks</div>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <div className={`card-value ${colorLongStreak}`}>{totalLongStreak}</div>
             {totalBelowAvg === 0 ? (
-              <span className="badge card-badge bb-green">Tidak ada</span>
+              <span className="badge card-badge bb-green">—</span>
             ) : (
               <span className={`badge card-badge ${badgeLongStreak}`}>{pctLongStreak}% dari {totalBelowAvg} kelas</span>
             )}
           </div>
-          <div className="card-sub">kelas below average</div>
+          <div className="card-sub">classes below average</div>
         </div>
         <div className="card">
-          <div className="card-label">Observasi need coaching</div>
+          <div className="card-label">Observation: need coaching</div>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <div className={`card-value ${totalNeedImprove > 0 ? "orange" : "green"}`}>{totalNeedImprove}</div>
             {totalNeedImprove > 0 ? (
               <span className="badge card-badge bb-orange">{pctNeedImprove}% dari total</span>
             ) : (
-              <span className="badge card-badge bb-green">Semua passed</span>
+              <span className="badge card-badge bb-green">All passed</span>
             )}
           </div>
-          <div className="card-sub">dari {teachers.length} Guru Juara</div>
+          <div className="card-sub">out of {teachers.length} Guru Juara</div>
         </div>
       </div>
 
       {/* Heatmap per guru bermasalah */}
       <div className="section">
         <div className="sec-head">
-          <span className="sec-title">Guru Juara dengan kelas below average</span>
-          <span className="ov-safe-note">{withIssue.length} dari {teachers.length} Guru Juara perlu perhatian</span>
+          <span className="sec-title">Guru Juara with classes below average</span>
+          <span className="ov-safe-note">{withIssue.length} out of {teachers.length} Guru Juara need attention</span>
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {withIssue.map(({ teacher, classes, belowAvgClasses, latestObs }) => {
@@ -924,13 +925,13 @@ function Overview({ stickinessData, observasiData, teachers, onSelectTeacher, fi
                   <span className="ov-teacher-name">{teacher}</span>
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                     <span className="ov-count" style={{ color: "#dc2626", fontWeight: 500 }}>
-                      {belowAvgClasses.length}/{classes.length} kelas below avg
+                      {belowAvgClasses.length}/{classes.length} slots below avg
                     </span>
                     {latestObs
                       ? <span className={`badge ${obsNeedImprove ? "b-need" : "b-pass"}`}>
                           Obs: {obsNeedImprove ? "Need improve" : "Passed"}
                         </span>
-                      : <span className="badge b-info">Obs: belum ada</span>
+                      : <span className="badge b-info">Obs: none yet</span>
                     }
                   </div>
                 </div>
@@ -964,7 +965,7 @@ function Overview({ stickinessData, observasiData, teachers, onSelectTeacher, fi
                   <div className="ov-hm-legend-item"><div className="ov-hm-legend-box" style={{ background: "#dcfce7" }} />Exceptional</div>
                   <div className="ov-hm-legend-item"><div className="ov-hm-legend-box" style={{ background: "#fef3c7" }} />On average</div>
                   <div className="ov-hm-legend-item"><div className="ov-hm-legend-box" style={{ background: "#fca5a5" }} />Below avg</div>
-                  <div className="ov-hm-legend-item"><div className="ov-hm-legend-box" style={{ background: "#dc2626" }} />Below avg ≥ 3 minggu</div>
+                  <div className="ov-hm-legend-item"><div className="ov-hm-legend-box" style={{ background: "#dc2626" }} />Below avg ≥ 3 weeks</div>
                   <div className="ov-hm-legend-item"><div className="ov-hm-legend-box" style={{ background: "#f1f5f9", border: "0.5px solid #e2e8f0" }} />Not Available</div>
                 </div>
               </div>
@@ -1108,7 +1109,7 @@ function Dashboard({ user, accessProfile }) {
     }
   }, [loading])
 
-  if (loading) return <div className="loading">Memuat data...</div>
+  if (loading) return <div className="loading">Loading data...</div>
 
   // ── Access filter ────────────────────────────────────────────────────────────
   // Apakah kelas ini termasuk cakupan POD/jenjang/subject milik role saat ini,
@@ -1364,7 +1365,7 @@ function Dashboard({ user, accessProfile }) {
                 </svg>
                 <input
                   className="sidebar-search"
-                  placeholder="Cari guru..."
+                  placeholder="Search teacher..."
                   value={sidebarSearch}
                   onChange={(e) => setSidebarSearch(e.target.value)}
                 />
@@ -1396,7 +1397,7 @@ function Dashboard({ user, accessProfile }) {
                     <div className="sidebar-item-info">
                       <div className="sidebar-item-name">{t}</div>
                       <div className="sidebar-item-sub">
-                        {ba > 0 ? `${ba} kelas below avg` : "Semua kelas aman"}
+                        {ba > 0 ? `${ba} slots below avg` : "All classes clear"}
                       </div>
                     </div>
                     <div className={`sidebar-dot dot-${color}`} />
@@ -1443,14 +1444,14 @@ function Dashboard({ user, accessProfile }) {
             </svg>
             <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
               <div style={{ fontSize: 30, fontWeight: 500, color: "#1e293b", lineHeight: 1 }}>{onTrackCount}</div>
-              <div style={{ fontSize: 13, color: "#94a3b8", lineHeight: 1.4 }}>kelas on avg/exceptional</div>
+              <div style={{ fontSize: 13, color: "#94a3b8", lineHeight: 1.4 }}>slots on track</div>
             </div>
           </div>
           <div style={{ borderTop: "0.5px solid #f1f5f9", paddingTop: 8, fontSize: 11, color: "#64748b" }}>
             <span style={{ color: belowAvg > 0 ? "#dc2626" : "#16a34a" }}>
-              {belowAvg > 0 ? `${belowAvg} kelas below avg` : "Semua kelas on avg/exceptional"}
+              {belowAvg > 0 ? `${belowAvg} slots below average` : "All slots on average or above"}
             </span>
-            {" · "}{classes.length} total kelas
+            {" · "}{classes.length} total slots
           </div>
         </div>
         <div style={{ flex: 1, background: "#fff", border: "0.5px solid #e2e8f0", borderRadius: 12, padding: "14px 16px", display: "flex", flexDirection: "column", gap: 10 }}>
@@ -1467,14 +1468,14 @@ function Dashboard({ user, accessProfile }) {
             </svg>
             <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
               <div style={{ fontSize: 30, fontWeight: 500, color: "#1e293b", lineHeight: 1 }}>{obsPassedCount}</div>
-              <div style={{ fontSize: 13, color: "#94a3b8", lineHeight: 1.4 }}>observasi passed</div>
+              <div style={{ fontSize: 13, color: "#94a3b8", lineHeight: 1.4 }}>observation passed</div>
             </div>
           </div>
           <div style={{ borderTop: "0.5px solid #f1f5f9", paddingTop: 8, fontSize: 11, color: "#64748b" }}>
             <span style={{ color: (obsHistory.length - obsPassedCount) > 0 ? "#d97706" : "#16a34a" }}>
-              {(obsHistory.length - obsPassedCount) > 0 ? `${obsHistory.length - obsPassedCount} need improvement` : "Semua observasi passed"}
+              {(obsHistory.length - obsPassedCount) > 0 ? `${obsHistory.length - obsPassedCount} need improvement` : "All observations passed"}
             </span>
-            {" · "}{obsHistory.length} total obs
+            {" · "}{obsHistory.length} total observations
           </div>
         </div>
         {canSeeObservationAssignment(selTeacher) && (() => {
@@ -1488,7 +1489,7 @@ function Dashboard({ user, accessProfile }) {
           const notYetLen = total > 0 ? (notYetCount / total) * circ : 0
           const pctOnTime = total > 0 ? Math.round(onTimeCount / total * 100) : 0
           const teacherLevel = teacherProfiles[selTeacher]?.level ?? null
-          const emptyText = teacherLevel !== null && teacherLevel <= 2 ? "Tidak ada assignment" : "Belum ada assignment"
+          const emptyText = teacherLevel !== null && teacherLevel <= 2 ? "No assignment" : "No assignment yet"
           return (
             <div
               style={{ flex: 1, background: "#fff", border: "0.5px solid #e2e8f0", borderRadius: 12, padding: "14px 16px", display: "flex", flexDirection: "column", gap: 10, cursor: total > 0 ? "pointer" : "default" }}
@@ -1532,8 +1533,9 @@ function Dashboard({ user, accessProfile }) {
                     </div>
                   </div>
                   <div style={{ borderTop: "0.5px solid #f1f5f9", paddingTop: 8, fontSize: 11, color: "#64748b" }}>
-                    {total} penugasan total
+                    {total} assignments total
                   </div>
+                  <div className="click-hint">Click for details</div>
                 </>
               )}
             </div>
@@ -1544,11 +1546,11 @@ function Dashboard({ user, accessProfile }) {
         <div className="left-col">
           <div className="section">
             <div className="sec-head">
-              <span className="sec-title">Stickiness index per kelas</span>
+              <span className="sec-title">Stickiness index per slot</span>
               <span className="week-pill">Weekly</span>
             </div>
             <table>
-              <thead><tr><th>Kelas</th><th>Stickiness</th><th>Deviasi</th><th>Status</th></tr></thead>
+              <thead><tr><th>Slot</th><th>Stickiness</th><th>Deviation</th><th>Status</th></tr></thead>
               <tbody>
                 {classes.map((c) => {
                   const pct       = Math.min(100, Math.max(-100, c.latest.stickiness))
@@ -1589,7 +1591,7 @@ function Dashboard({ user, accessProfile }) {
 
           <div className="section">
             <div className="sec-head">
-              <span className="sec-title">{selClass ? `Tren stickiness — ${selClass}` : "Tren stickiness"}</span>
+              <span className="sec-title">{selClass ? `Stickiness trend — ${selClass}` : "Stickiness trend"}</span>
               {selClass && <ChartLegend />}
             </div>
             {!selClass ? (
@@ -1597,7 +1599,7 @@ function Dashboard({ user, accessProfile }) {
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
                   <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
                 </svg>
-                <span>Klik baris kelas untuk melihat tren</span>
+                <span>Click a class row to view trend</span>
               </div>
             ) : (
               <ResponsiveContainer width="100%" height={200}>
@@ -1620,15 +1622,16 @@ function Dashboard({ user, accessProfile }) {
         <div className="right-col">
           <div className="section" style={{ marginBottom: 14 }}>
             <div className="sec-head">
-              <span className="sec-title">Riwayat observasi kelas</span>
+              <span className="sec-title">Class observation history</span>
               <span className="obs-pill">Monthly</span>
             </div>
+            {obsHistory.length > 0 && <div className="click-hint" style={{ marginTop: -4, marginBottom: 8 }}>Click for details</div>}
             {obsHistory.length === 0 ? (
               <div className="empty-state">
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
                   <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                 </svg>
-                <span>Belum ada data observasi</span>
+                <span>No observation data yet</span>
               </div>
             ) : (
               <div className="obs-scroll">
@@ -1656,16 +1659,17 @@ function Dashboard({ user, accessProfile }) {
           
           <div className="section" style={{ marginBottom: 14 }}>
             <div className="sec-head">
-              <span className="sec-title">Riwayat coaching</span>
-              <span className="coaching-pill">Semua sesi</span>
+              <span className="sec-title">Coaching history</span>
+              <span className="coaching-pill">All sessions</span>
             </div>
+            {coachingHistory.length > 0 && <div className="click-hint" style={{ marginTop: -4, marginBottom: 8 }}>Click for details</div>}
             {coachingHistory.length === 0 ? (
               <div className="empty-state">
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
                   <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/>
                   <path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/>
                 </svg>
-                <span>Belum ada data coaching</span>
+                <span>No coaching data yet</span>
               </div>
             ) : (
               <div className="obs-scroll">
@@ -1677,7 +1681,7 @@ function Dashboard({ user, accessProfile }) {
                         <div>
                           <div className="obs-class">{c.className}</div>
                           <div className="obs-scores">
-                            <span className="obs-crit">Kelas: {formatDate(c.tanggalKelas)}</span>
+                            <span className="obs-crit">Class: {formatDate(c.tanggalKelas)}</span>
                           </div>
                           <div className="obs-observer">{c.coach}</div>
                         </div>
@@ -1692,33 +1696,35 @@ function Dashboard({ user, accessProfile }) {
 
           <div className="section" style={{ marginBottom: 14 }}>
             <div className="sec-head">
-              <span className="sec-title">Kehadiran kelas</span>
+              <span className="sec-title">Class attendance</span>
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
               <div className="card" style={{ cursor: "pointer" }} onClick={() => setActiveKDModal(true)}>
-                <div className="card-label">Kelas Ditinggal</div>
+                <div className="card-label">Missed Class</div>
                 <div className={`card-value ${ditinggal.length > 0 ? "red" : "green"}`}>{ditinggal.length}</div>
-                <div className="card-sub">pertemuan ditinggalkan</div>
+                <div className="card-sub">meetings missed</div>
+                <div className="click-hint">Click for details</div>
               </div>
               <div className="card" style={{ cursor: "pointer" }} onClick={() => setActiveKPModal(true)}>
-                <div className="card-label">Membantu Piket</div>
+                <div className="card-label">Piket Help</div>
                 <div className="card-value green">{piket.length}</div>
-                <div className="card-sub">kelas dibantu</div>
+                <div className="card-sub">classes helped</div>
+                <div className="click-hint">Click for details</div>
               </div>
             </div>
           </div>
 
           <div className="section">
             <div className="sec-head">
-              <span className="sec-title">Cuti per kelas</span>
-              <span className="cuti-pill">Semester berjalan</span>
+              <span className="sec-title">Leave per class</span>
+              <span className="cuti-pill">SMT 2 2025/2026</span>
             </div>
             {allClassNames.length === 0 ? (
-              <div className="empty-state"><span>Belum ada data cuti</span></div>
+              <div className="empty-state"><span>No leave data yet</span></div>
             ) : (
               <>
                 <table>
-                  <thead><tr><th>Kelas</th><th>Pertemuan ditinggalkan</th></tr></thead>
+                  <thead><tr><th>Class</th><th>Meetings missed</th></tr></thead>
                   <tbody>
                     {allClassNames.map((name) => {
                       const dates = Array.isArray(cutiKelas[name]) ? cutiKelas[name] : []
@@ -1731,7 +1737,7 @@ function Dashboard({ user, accessProfile }) {
                     })}
                   </tbody>
                 </table>
-                <div className="cuti-note">Batas maks: {BATAS_MAKS} pertemuan/kelas per semester</div>
+                <div className="cuti-note">Max limit: {BATAS_MAKS} meetings/class per semester</div>
               </>
             )}
           </div>
@@ -1759,14 +1765,14 @@ function Dashboard({ user, accessProfile }) {
                 </svg>
                 <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
                   <div style={{ fontSize: 30, fontWeight: 500, color: "#1e293b", lineHeight: 1 }}>{onTrackCount}</div>
-                  <div style={{ fontSize: 15, color: "#94a3b8", lineHeight: 1.4 }}>kelas on avg/exceptional</div>
+                  <div style={{ fontSize: 15, color: "#94a3b8", lineHeight: 1.4 }}>slots on track</div>
                 </div>
               </div>
               <div style={{ borderTop: "0.5px solid #f1f5f9", paddingTop: 8, fontSize: 11, color: "#64748b" }}>
                 <span style={{ color: belowAvg > 0 ? "#dc2626" : "#16a34a" }}>
-                  {belowAvg > 0 ? `${belowAvg} kelas below avg` : "Semua kelas on avg/exceptional"}
+                  {belowAvg > 0 ? `${belowAvg} slots below average` : "All slots on average or above"}
                 </span>
-                {" · "}{classes.length} total kelas
+                {" · "}{classes.length} total slots
               </div>
             </div>
             <div style={{ flex: 1, background: "#fff", border: "0.5px solid #e2e8f0", borderRadius: 12, padding: "14px 16px", display: "flex", flexDirection: "column", gap: 10 }}>
@@ -1783,14 +1789,14 @@ function Dashboard({ user, accessProfile }) {
                 </svg>
                 <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
                   <div style={{ fontSize: 30, fontWeight: 500, color: "#1e293b", lineHeight: 1 }}>{obsPassedCount}</div>
-                  <div style={{ fontSize: 15, color: "#94a3b8", lineHeight: 1.4 }}>observasi passed</div>
+                  <div style={{ fontSize: 15, color: "#94a3b8", lineHeight: 1.4 }}>observation passed</div>
                 </div>
               </div>
               <div style={{ borderTop: "0.5px solid #f1f5f9", paddingTop: 8, fontSize: 11, color: "#64748b" }}>
                 <span style={{ color: (obsHistory.length - obsPassedCount) > 0 ? "#d97706" : "#16a34a" }}>
-                  {(obsHistory.length - obsPassedCount) > 0 ? `${obsHistory.length - obsPassedCount} need improvement` : "Semua observasi passed"}
+                  {(obsHistory.length - obsPassedCount) > 0 ? `${obsHistory.length - obsPassedCount} need improvement` : "All observations passed"}
                 </span>
-                {" · "}{obsHistory.length} total obs
+                {" · "}{obsHistory.length} total observations
               </div>
             </div>
             {canSeeObservationAssignment(selTeacher) && (() => {
@@ -1804,7 +1810,7 @@ function Dashboard({ user, accessProfile }) {
               const notYetLen = total > 0 ? (notYetCount / total) * circ : 0
               const pctOnTime = total > 0 ? Math.round(onTimeCount / total * 100) : 0
               const teacherLevel = teacherProfiles[selTeacher]?.level ?? null
-              const emptyText = teacherLevel !== null && teacherLevel <= 2 ? "Tidak ada assignment" : "Belum ada assignment"
+              const emptyText = teacherLevel !== null && teacherLevel <= 2 ? "No assignment" : "No assignment yet"
               return (
                 <div
                   style={{ flex: 1, background: "#fff", border: "0.5px solid #e2e8f0", borderRadius: 12, padding: "14px 16px", display: "flex", flexDirection: "column", gap: 10, cursor: total > 0 ? "pointer" : "default" }}
@@ -1848,8 +1854,9 @@ function Dashboard({ user, accessProfile }) {
                         </div>
                       </div>
                       <div style={{ borderTop: "0.5px solid #f1f5f9", paddingTop: 8, fontSize: 11, color: "#64748b" }}>
-                        {total} penugasan total
+                        {total} assignments total
                       </div>
+                      <div className="click-hint">Click for details</div>
                     </>
                   )}
                 </div>
@@ -1860,11 +1867,11 @@ function Dashboard({ user, accessProfile }) {
             <div className="left-col">
               <div className="section">
                 <div className="sec-head">
-                  <span className="sec-title">Stickiness index per kelas</span>
+                  <span className="sec-title">Stickiness index per slot</span>
                   <span className="week-pill">Weekly</span>
                 </div>
                 <table>
-                  <thead><tr><th>Kelas</th><th>Stickiness</th><th>Deviasi</th><th>Status</th></tr></thead>
+                  <thead><tr><th>Class</th><th>Stickiness</th><th>Deviation</th><th>Status</th></tr></thead>
                   <tbody>
                     {classes.map((c) => {
                       const pct       = Math.min(100, Math.max(-100, c.latest.stickiness))
@@ -1894,7 +1901,7 @@ function Dashboard({ user, accessProfile }) {
               </div>
               <div className="section">
                 <div className="sec-head">
-                  <span className="sec-title">{selClass ? `Tren stickiness — ${selClass}` : "Tren stickiness"}</span>
+                  <span className="sec-title">{selClass ? `Stickiness trend — ${selClass}` : "Stickiness trend"}</span>
                   {selClass && <ChartLegend />}
                 </div>
                 {!selClass ? (
@@ -1902,7 +1909,7 @@ function Dashboard({ user, accessProfile }) {
                     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
                       <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
                     </svg>
-                    <span>Klik baris kelas untuk melihat tren</span>
+                    <span>Click a class row to view trend</span>
                   </div>
                 ) : (
                   <ResponsiveContainer width="100%" height={200}>
@@ -1924,15 +1931,16 @@ function Dashboard({ user, accessProfile }) {
             <div className="right-col">
               <div className="section" style={{ marginBottom: 14 }}>
                 <div className="sec-head">
-                  <span className="sec-title">Riwayat observasi kelas</span>
+                  <span className="sec-title">Class observation history</span>
                   <span className="obs-pill">Monthly</span>
                 </div>
+                {obsHistory.length > 0 && <div className="click-hint" style={{ marginTop: -4, marginBottom: 8 }}>Click for details</div>}
                 {obsHistory.length === 0 ? (
                   <div className="empty-state">
                     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
                       <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                     </svg>
-                    <span>Belum ada data observasi</span>
+                    <span>No observation data yet</span>
                   </div>
                 ) : (
                   <div className="obs-scroll">
@@ -1959,16 +1967,17 @@ function Dashboard({ user, accessProfile }) {
               </div>
               <div className="section" style={{ marginBottom: 14 }}>
                 <div className="sec-head">
-                  <span className="sec-title">Riwayat coaching</span>
-                  <span className="coaching-pill">Semua sesi</span>
+                  <span className="sec-title">Coaching history</span>
+                  <span className="coaching-pill">All sessions</span>
                 </div>
+                {coachingHistory.length > 0 && <div className="click-hint" style={{ marginTop: -4, marginBottom: 8 }}>Click for details</div>}
                 {coachingHistory.length === 0 ? (
                   <div className="empty-state">
                     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
                       <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/>
                       <path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/>
                     </svg>
-                    <span>Belum ada data coaching</span>
+                    <span>No coaching data yet</span>
                   </div>
                 ) : (
                   <div className="obs-scroll">
@@ -1980,7 +1989,7 @@ function Dashboard({ user, accessProfile }) {
                             <div>
                               <div className="obs-class">{c.className}</div>
                               <div className="obs-scores">
-                                <span className="obs-crit">Kelas: {formatDate(c.tanggalKelas)}</span>
+                                <span className="obs-crit">Class: {formatDate(c.tanggalKelas)}</span>
                               </div>
                               <div className="obs-observer">{c.coach}</div>
                             </div>
@@ -1994,32 +2003,34 @@ function Dashboard({ user, accessProfile }) {
               </div>
               <div className="section" style={{ marginBottom: 14 }}>
                 <div className="sec-head">
-                  <span className="sec-title">Kehadiran kelas</span>
+                  <span className="sec-title">Class attendance</span>
                 </div>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                   <div className="card" style={{ cursor: "pointer" }} onClick={() => setActiveKDModal(true)}>
-                    <div className="card-label">Kelas Ditinggal</div>
+                    <div className="card-label">Missed Class</div>
                     <div className={`card-value ${ditinggal.length > 0 ? "red" : "green"}`}>{ditinggal.length}</div>
-                    <div className="card-sub">pertemuan ditinggalkan</div>
+                    <div className="card-sub">meetings missed</div>
+                    <div className="click-hint">Click for details</div>
                   </div>
                   <div className="card" style={{ cursor: "pointer" }} onClick={() => setActiveKPModal(true)}>
-                    <div className="card-label">Membantu Piket</div>
+                    <div className="card-label">Piket Help</div>
                     <div className="card-value green">{piket.length}</div>
-                    <div className="card-sub">kelas dibantu</div>
+                    <div className="card-sub">classes helped</div>
+                    <div className="click-hint">Click for details</div>
                   </div>
                 </div>
               </div>
               <div className="section">
                 <div className="sec-head">
-                  <span className="sec-title">Cuti per kelas</span>
-                  <span className="cuti-pill">Semester berjalan</span>
+                  <span className="sec-title">Leave per class</span>
+                  <span className="cuti-pill">SMT 2 2025/2026</span>
                 </div>
                 {allClassNames.length === 0 ? (
-                  <div className="empty-state"><span>Belum ada data cuti</span></div>
+                  <div className="empty-state"><span>No leave data yet</span></div>
                 ) : (
                   <>
                     <table>
-                      <thead><tr><th>Kelas</th><th>Pertemuan ditinggalkan</th></tr></thead>
+                      <thead><tr><th>Class</th><th>Meetings missed</th></tr></thead>
                       <tbody>
                         {allClassNames.map((name) => {
                           const dates = Array.isArray(cutiKelas[name]) ? cutiKelas[name] : []
@@ -2032,7 +2043,7 @@ function Dashboard({ user, accessProfile }) {
                         })}
                       </tbody>
                     </table>
-                    <div className="cuti-note">Batas maks: {BATAS_MAKS} pertemuan/kelas per semester</div>
+                    <div className="cuti-note">Max limit: {BATAS_MAKS} meetings/class per semester</div>
                   </>
                 )}
               </div>
@@ -2096,22 +2107,22 @@ export default function App() {
   }, [prevUser])
 
   // Loading awal
-  if (user === undefined) return <div className="loading">Memuat...</div>
+  if (user === undefined) return <div className="loading">Loading...</div>
 
   // Belum login
   if (!user) return <Login />
 
   // Tunggu profile selesai di-fetch
-  if (user && accessProfile === undefined) return <div className="loading">Memuat profil...</div>
+  if (user && accessProfile === undefined) return <div className="loading">Loading profile...</div>
 
   // Email tidak terdaftar di Supabase dan bukan super admin
   if (!accessProfile) return (
     <div className="login-page">
       <div className="login-card">
-        <div className="login-title" style={{ color: "#dc2626" }}>Akses Ditolak</div>
-        <div className="login-sub">Email <strong>{user.email}</strong> tidak terdaftar.</div>
+        <div className="login-title" style={{ color: "#dc2626" }}>Access Denied</div>
+        <div className="login-sub">Email <strong>{user.email}</strong> is not registered.</div>
         <button className="login-btn" style={{ marginTop: 16 }} onClick={() => signOut(auth)}>
-          Kembali ke Login
+          Back to Login
         </button>
       </div>
     </div>
