@@ -5,6 +5,24 @@ Semua perubahan penting pada project ini didokumentasikan di file ini.
 Format berdasarkan [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
+### Added
+- **Section GJ Utilization** — strip ringkasan utilisasi guru di bagian atas detail teacher (manager view & GJ view).
+  - Integrasi project Supabase baru `supabaseUtil`, query tabel `semesters` (filter `name = "Semester 2 2025/2026"`) lalu `teacher_utilization` untuk semester tersebut, dengan normalisasi `teacher_name` lewat `nameMap`.
+  - Menampilkan persentase utilisasi, total jam mengajar (mandatory + non-mandatory), jam sebagai mentor (jika > 0), dan status terhadap threshold minimum 50% & 75% (badge hijau/merah).
+  - Tambah font icon **Tabler Icons** (`index.html`) untuk ikon-ikon di strip ini dan KPI card Punctuality.
+- **Fitur Punctuality** — KPI card baru (Late entry / Early exit) di sebelah KPI Slot Performance & Observation Result, klik untuk buka modal `PunctualityModal` berisi detail per kejadian (jam join/leave vs jam mulai/selesai kelas, overage).
+  - CSV baru `CSV_PUNCTUALITY` (`gid=1486822041`), diproses oleh `processPunctuality(rows)`.
+  - Access gate `canSeePunctuality(teacherNick, courseGrade, slotName)`: GJ lihat punya sendiri, direct manager & super admin lihat semua, lainnya dibatasi scope POD.
+- **Fitur Live Class Issues** — section baru di kolom kiri menampilkan daftar isu kelas live (problem, slot, tanggal, alasan) per GJ.
+  - CSV baru `CSV_LIVE_CLASS_ISSUES` (`gid=1535291009`), diproses oleh `processLiveClassIssues(rows, nameMap)`, di-filter dengan `canSeeClassForTeacher` berdasarkan grade hasil parsing kolom `course_grade` (sebelumnya sempat di-regex dari `slot_name`, sekarang CSV sudah menyediakan kolom `course_grade` langsung) dan ditampilkan via `formatClassName`.
+- **Fitur Event Attendance** — section baru "Event attendance" di kolom kiri, badge ringkasan jumlah Attend/Absent, list per event (tanggal, jenis, nama event, status).
+  - CSV baru `CSV_EVENT_ATTENDANCE` (`gid=191479940`), diproses oleh `processEventAttendance(rawData, nameMap)`, diurutkan terlama ke terbaru.
+  - Access gate `canSeeEventAttendance(teacherNick)`: GJ lihat punya sendiri, direct manager & super admin lihat semua.
+
+### Changed
+- Tabel **Stickiness index per slot** sekarang scrollable (`maxHeight: 180px`) dengan border, begitu juga list **Live class issues** (`maxHeight: 220px`), agar layout kolom kiri tidak melebar saat data banyak.
+- Counter `tryFinish` loading state disesuaikan mengikuti penambahan fetch paralel baru (CSV + Supabase `teacher_utilization`, lalu `CSV_EVENT_ATTENDANCE`).
+- Urutan email di `SUPER_ADMIN_EMAILS` dirapikan; `tyas.ahadriansya@colearn.id` dihapus dari daftar super admin.
 
 ## [0.2.0] - 2026-06-16
 ### Added

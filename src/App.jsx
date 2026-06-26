@@ -20,7 +20,7 @@ const SUPER_ADMIN_EMAILS = new Set([
   "fatah.abdul@colearn.id",
   "anatasya.ellena@colearn.id",
   "ima.aruan@colearn.id",
-  "tyas.ahadriansya@colearn.id",
+  
 ])
 
 const ADMIN_EMAILS = new Set([
@@ -47,6 +47,8 @@ const CSV_LIVE_CLASS_ISSUES =
   "https://docs.google.com/spreadsheets/d/e/2PACX-1vSyJm_AxS2dzNaoV_ztNDX75aZ0h2Q9pws3QcKQQd13gJ-Rh2wd8W_nBAOzCzTLISNZ_uSRB1KBzHHu/pub?gid=1535291009&single=true&output=csv"
 const CSV_PUNCTUALITY =
   "https://docs.google.com/spreadsheets/d/e/2PACX-1vSyJm_AxS2dzNaoV_ztNDX75aZ0h2Q9pws3QcKQQd13gJ-Rh2wd8W_nBAOzCzTLISNZ_uSRB1KBzHHu/pub?gid=1486822041&single=true&output=csv"
+const CSV_EVENT_ATTENDANCE =
+  "https://docs.google.com/spreadsheets/d/e/2PACX-1vSyJm_AxS2dzNaoV_ztNDX75aZ0h2Q9pws3QcKQQd13gJ-Rh2wd8W_nBAOzCzTLISNZ_uSRB1KBzHHu/pub?gid=191479940&single=true&output=csv"
 
 const BATAS_MAKS = 4
 
@@ -366,33 +368,23 @@ function processObservationAssignment(rows, nameMap = {}) {
 }
 
 function processLiveClassIssues(rows, nameMap) {
-  // columns: date, slot_name, person_of_responsibility, problem, reason_details
+  // columns: date, course_grade, slot_name, person_of_responsibility, problem, reason_details
   const result = {}
   rows.forEach(row => {
     const fullName = (row["person_of_responsibility"] || "").trim()
     const nick = nameMap[fullName] || fullName
     if (!nick) return
 
-    const rawSlot = (row["slot_name"] || "").trim()
-    // Parse grade from slot_name.
-    // Normal format: "6 Matematika 13" → grade is first token
-    // Replacement class format: "Kelas Pengganti 7 MTK" → grade is 3rd token
-    let grade = null
-    let slotDisplay = rawSlot
-    const replacementMatch = rawSlot.match(/Kelas Pengganti\s+(\d+)/i)
-    const normalMatch = rawSlot.match(/^(\d+)\s+/)
-    if (replacementMatch) {
-      grade = replacementMatch[1]
-    } else if (normalMatch) {
-      grade = normalMatch[1]
-    }
+    const courseGrade = (row["course_grade"] || "").trim()
+    const slotName     = (row["slot_name"] || "").trim()
 
     const issue = {
-      date:    (row["date"] || "").trim(),
-      slot:    slotDisplay,
-      grade:   grade,
-      problem: (row["problem"] || "").trim(),
-      reason:  (row["reason_details"] || "").trim(),
+      date:        (row["date"] || "").trim(),
+      courseGrade,
+      slotName,
+      slot:        courseGrade ? formatClassName(courseGrade, slotName) : slotName,
+      problem:     (row["problem"] || "").trim(),
+      reason:      (row["reason_details"] || "").trim(),
     }
 
     if (!result[nick]) result[nick] = []
@@ -402,6 +394,31 @@ function processLiveClassIssues(rows, nameMap) {
   // Sort each teacher's issues newest to oldest
   Object.keys(result).forEach(nick => {
     result[nick].sort((a, b) => new Date(b.date) - new Date(a.date))
+  })
+
+  return result
+}
+
+function processEventAttendance(rawData, nameMap) {
+  const result = {}
+  rawData.forEach(row => {
+    const fullName = (row["name"] || "").trim()
+    const nick = nameMap[fullName]
+    if (!nick) return
+
+    const entry = {
+      date:      (row["date"] || "").trim(),
+      eventType: (row["event_type"] || "").trim(),
+      event:     (row["event"] || "").trim(),
+      attend:    (row["attend"] || "").trim(),
+    }
+
+    if (!result[nick]) result[nick] = []
+    result[nick].push(entry)
+  })
+
+  Object.keys(result).forEach(nick => {
+    result[nick].sort((a, b) => new Date(a.date) - new Date(b.date))
   })
 
   return result
@@ -1179,6 +1196,7 @@ function Dashboard({ user, accessProfile }) {
   const [punctualityData,            setPunctualityData]            = useState(null)
   const [activePunctualityModal,     setActivePunctualityModal]     = useState(false)
   const [utilizationData,            setUtilizationData]            = useState(null)
+  const [eventAttendanceData,        setEventAttendanceData]        = useState(null)
 
   const hasTeamToManage = (accessProfile.directReportNickNames?.size ?? 0) > 0
     || ["POD Lead", "Science Lead", "STEM Lead"].includes(accessProfile.role)
@@ -1211,7 +1229,7 @@ function Dashboard({ user, accessProfile }) {
 
       // Remaining CSVs + Supabase run in parallel now that nameMap is ready
       let done = 0
-      const tryFinish = () => { done++; if (done === 7) setLoading(false) }
+      const tryFinish = () => { done++; if (done === 8) setLoading(false) }
 
       supabase.from("v_users_full")
         .select("nick_name, full_name, url_photo, role, main_pod, direct_manager_nama, level")
@@ -1289,6 +1307,11 @@ function Dashboard({ user, accessProfile }) {
         complete: (r) => { setPunctualityData(processPunctuality(r.data)); tryFinish() },
         error: () => tryFinish(),
       })
+      Papa.parse(CSV_EVENT_ATTENDANCE, {
+        download: true, header: true, skipEmptyLines: true,
+        complete: (r) => { setEventAttendanceData(processEventAttendance(r.data, nameMap)); tryFinish() },
+        error: () => tryFinish(),
+      })
     }
 
     loadAll()
@@ -1355,6 +1378,13 @@ function Dashboard({ user, accessProfile }) {
     if (accessProfile.isGJ) return teacherNick === accessProfile.nickName
     if (accessProfile.directReportNickNames?.has(teacherNick)) return true
     return isInPodScope(courseGrade, slotName)
+  }
+
+  function canSeeEventAttendance(teacherNick) {
+    if (accessProfile.isSuperAdmin) return true
+    if (accessProfile.isGJ) return teacherNick === accessProfile.nickName
+    if (isDirectReport(teacherNick)) return true
+    return false
   }
 
   // ── Teachers list ─────────────────────────────────────────────────────────
@@ -1428,11 +1458,12 @@ function Dashboard({ user, accessProfile }) {
     : allPiket.filter(d => canSeeClassForTeacher(selTeacher, d.courseGrade, d.slotName))
 
   const observationAssignment = observationAssignmentData?.[selTeacher] ?? []
+  const eventAttendance = eventAttendanceData?.[selTeacher] ?? []
   const liveClassIssues = (liveClassIssuesData?.[selTeacher] ?? [])
     .filter(issue => {
       if (noFilter) return true
-      if (!issue.grade) return true
-      return canSeeClassForTeacher(selTeacher, issue.grade, issue.slot)
+      if (!issue.courseGrade) return true
+      return canSeeClassForTeacher(selTeacher, issue.courseGrade, issue.slotName)
     })
 
   const currentUtilization = utilizationData
@@ -1991,6 +2022,55 @@ function Dashboard({ user, accessProfile }) {
               </div>
             )}
           </div>
+
+          {canSeeEventAttendance(selTeacher) && (
+            <div className="section" style={{ marginBottom: 14 }}>
+              <div className="sec-head">
+                <span className="sec-title">Event attendance</span>
+                <div style={{ display: "flex", gap: 8 }}>
+                  {eventAttendance.length > 0 && (
+                    <>
+                      <span style={{ background: "#dcfce7", color: "#15803d", fontSize: 11, padding: "2px 9px", borderRadius: 20, fontWeight: 500 }}>
+                        {eventAttendance.filter(e => e.attend === "Attend").length} attended
+                      </span>
+                      <span style={{ background: "#fee2e2", color: "#991b1b", fontSize: 11, padding: "2px 9px", borderRadius: 20, fontWeight: 500 }}>
+                        {eventAttendance.filter(e => e.attend === "Absent").length} absent
+                      </span>
+                    </>
+                  )}
+                </div>
+              </div>
+              {eventAttendance.length === 0 ? (
+                <div className="empty-state">
+                  <span>No event data yet</span>
+                </div>
+              ) : (
+                <div>
+                  {eventAttendance.map((e, i) => (
+                    <div key={i} className="obs-item">
+                      <div className="obs-top">
+                        <div className="obs-left">
+                          <div className="obs-date">{formatDate(e.date)}</div>
+                          <div>
+                            <div className="obs-class">{e.eventType}</div>
+                            <div className="obs-observer">{e.event}</div>
+                          </div>
+                        </div>
+                        <span style={{
+                          background: e.attend === "Attend" ? "#dcfce7" : "#fee2e2",
+                          color: e.attend === "Attend" ? "#15803d" : "#991b1b",
+                          fontSize: 10, padding: "2px 8px", borderRadius: 20, fontWeight: 500,
+                          whiteSpace: "nowrap", flexShrink: 0, marginTop: 2
+                        }}>
+                          {e.attend}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="right-col">
