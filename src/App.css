@@ -158,6 +158,70 @@ body {
 .click-hint { font-size: 10px; color: #b0b7c1; margin-top: 4px; }
 .card-class-name { font-size: 18px; font-weight: 500; color: #1e293b; margin-top: 4px; }
 
+/* ── Teacher utilization strip ── */
+.util-strip {
+  background: #fff;
+  border: 0.5px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.util-divider {
+  width: 0.5px;
+  background: #e2e8f0;
+  height: 48px;
+  flex-shrink: 0;
+}
+
+.util-item {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.util-item-label {
+  font-size: 11px;
+  color: #64748b;
+  white-space: nowrap;
+  line-height: 1.4;
+}
+
+.util-item-value {
+  font-size: 15px;
+  font-weight: 500;
+  color: #1e293b;
+}
+
+.util-status-threshold {
+  font-size: 11px;
+  color: #64748b;
+  white-space: nowrap;
+  min-width: 44px;
+}
+
+.badge-util-green {
+  background: #EAF3DE;
+  color: #27500A;
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.badge-util-red {
+  background: #FCEBEB;
+  color: #791F1F;
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
 /* ── Two column ── */
 .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; align-items: start; }
 .left-col { display: flex; flex-direction: column; gap: 14px; }

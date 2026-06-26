@@ -3,6 +3,7 @@ import { createPortal } from "react-dom"
 import { onAuthStateChanged, signOut } from "firebase/auth"
 import { auth } from "./firebase"
 import { supabase } from "./supabase"
+import { supabaseUtil } from "./supabaseUtil"
 import Papa from "papaparse"
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid,
@@ -23,11 +24,11 @@ const SUPER_ADMIN_EMAILS = new Set([
 ])
 
 const ADMIN_EMAILS = new Set([
-  "tyas.ahadriansya@colearn.id",
   "imam.fachrudin@colearn.id",
   "fatah.abdul@colearn.id",
   "anatasya.ellena@colearn.id",
   "ima.aruan@colearn.id",
+  "tyas.ahadriansya@colearn.id",
 ])
 
 const CSV_STICKINESS =
@@ -42,6 +43,10 @@ const CSV_ASSIGNMENT_OBSERVASI =
   "https://docs.google.com/spreadsheets/d/e/2PACX-1vSyJm_AxS2dzNaoV_ztNDX75aZ0h2Q9pws3QcKQQd13gJ-Rh2wd8W_nBAOzCzTLISNZ_uSRB1KBzHHu/pub?gid=1134271417&single=true&output=csv"
 const CSV_NAMEMAP =
   "https://docs.google.com/spreadsheets/d/e/2PACX-1vSyJm_AxS2dzNaoV_ztNDX75aZ0h2Q9pws3QcKQQd13gJ-Rh2wd8W_nBAOzCzTLISNZ_uSRB1KBzHHu/pub?gid=1915278661&single=true&output=csv"
+const CSV_LIVE_CLASS_ISSUES =
+  "https://docs.google.com/spreadsheets/d/e/2PACX-1vSyJm_AxS2dzNaoV_ztNDX75aZ0h2Q9pws3QcKQQd13gJ-Rh2wd8W_nBAOzCzTLISNZ_uSRB1KBzHHu/pub?gid=1535291009&single=true&output=csv"
+const CSV_PUNCTUALITY =
+  "https://docs.google.com/spreadsheets/d/e/2PACX-1vSyJm_AxS2dzNaoV_ztNDX75aZ0h2Q9pws3QcKQQd13gJ-Rh2wd8W_nBAOzCzTLISNZ_uSRB1KBzHHu/pub?gid=1486822041&single=true&output=csv"
 
 const BATAS_MAKS = 4
 
@@ -358,6 +363,79 @@ function processObservationAssignment(rows, nameMap = {}) {
     byObserver[t].sort((a, b) => new Date(b.deadline) - new Date(a.deadline))
   })
   return byObserver
+}
+
+function processLiveClassIssues(rows, nameMap) {
+  // columns: date, slot_name, person_of_responsibility, problem, reason_details
+  const result = {}
+  rows.forEach(row => {
+    const fullName = (row["person_of_responsibility"] || "").trim()
+    const nick = nameMap[fullName] || fullName
+    if (!nick) return
+
+    const rawSlot = (row["slot_name"] || "").trim()
+    // Parse grade from slot_name.
+    // Normal format: "6 Matematika 13" → grade is first token
+    // Replacement class format: "Kelas Pengganti 7 MTK" → grade is 3rd token
+    let grade = null
+    let slotDisplay = rawSlot
+    const replacementMatch = rawSlot.match(/Kelas Pengganti\s+(\d+)/i)
+    const normalMatch = rawSlot.match(/^(\d+)\s+/)
+    if (replacementMatch) {
+      grade = replacementMatch[1]
+    } else if (normalMatch) {
+      grade = normalMatch[1]
+    }
+
+    const issue = {
+      date:    (row["date"] || "").trim(),
+      slot:    slotDisplay,
+      grade:   grade,
+      problem: (row["problem"] || "").trim(),
+      reason:  (row["reason_details"] || "").trim(),
+    }
+
+    if (!result[nick]) result[nick] = []
+    result[nick].push(issue)
+  })
+
+  // Sort each teacher's issues newest to oldest
+  Object.keys(result).forEach(nick => {
+    result[nick].sort((a, b) => new Date(b.date) - new Date(a.date))
+  })
+
+  return result
+}
+
+// ─── Punctuality ──────────────────────────────────────────────────────────────
+function processPunctuality(rows) {
+  const result = {}
+  rows.forEach((row) => {
+    const teacher = (row["teacher_name"] || "").trim()
+    if (!teacher || teacher === "Guru Juara TKA") return
+    if (!result[teacher]) result[teacher] = { lateEntry: [], earlyExit: [] }
+
+    const status   = (row["punctuality_status"] || "").toLowerCase()
+    const lateVal  = (row["late_entry"]  || "").trim()
+    const earlyVal = (row["early_exit"]  || "").trim()
+    const base = {
+      date:           (row["date"]             || "").trim(),
+      courseGrade:    (row["course_grade"]      || "").trim(),
+      slotName:       (row["slot_name"]         || "").trim(),
+      timeOfJoining:  (row["time_of_joining"]   || "").trim(),
+      liveClassStart: (row["live_class_start"]  || "").trim(),
+      timeOfLeaving:  (row["time_of_leaving"]   || "").trim(),
+      liveClassEnd:   (row["live_class_end"]    || "").trim(),
+    }
+    if (status.includes("late entry") && lateVal)  result[teacher].lateEntry.push({ ...base, overage: lateVal })
+    if (status.includes("early exit") && earlyVal) result[teacher].earlyExit.push({ ...base, overage: earlyVal })
+  })
+  const byDate = (a, b) => new Date(b.date) - new Date(a.date)
+  Object.values(result).forEach(d => {
+    d.lateEntry.sort(byDate)
+    d.earlyExit.sort(byDate)
+  })
+  return result
 }
 
 // ─── Sub components ───────────────────────────────────────────────────────────
@@ -701,6 +779,101 @@ function ObservationAssignmentModal({ data, onClose }) {
   )
 }
 
+function PunctualityModal({ data, onClose }) {
+  const [activeTab, setActiveTab] = useState("lateEntry")
+  if (!data) return null
+
+  const lateEntry = data.lateEntry ?? []
+  const earlyExit = data.earlyExit ?? []
+  const items = activeTab === "lateEntry" ? lateEntry : earlyExit
+
+  function formatOverage(str) {
+    const match = (str || "").match(/(\d+)\s*minute/i)
+    return match ? `+${match[1]} min` : str
+  }
+
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-header">
+          <div className="modal-meta">
+            <div className="modal-class">Punctuality</div>
+            <div className="modal-sub">
+              <span>Current semester · {lateEntry.length + earlyExit.length} incidents recorded</span>
+            </div>
+          </div>
+        </div>
+
+        <div style={{ display: "flex", gap: 4, padding: "10px 18px 0", borderBottom: "0.5px solid #f1f5f9" }}>
+          {[
+            { key: "lateEntry", label: "Late entry", icon: "ti-clock-x", iconColor: "#E24B4A", count: lateEntry.length, bg: "#FCEBEB", color: "#A32D2D" },
+            { key: "earlyExit", label: "Early exit",  icon: "ti-door-exit", iconColor: "#BA7517", count: earlyExit.length, bg: "#FAEEDA", color: "#854F0B" },
+          ].map(tab => (
+            <button
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key)}
+              style={{
+                fontSize: 12, padding: "6px 12px",
+                borderRadius: "6px 6px 0 0",
+                border: "0.5px solid",
+                borderColor: activeTab === tab.key ? "#e2e8f0" : "transparent",
+                borderBottomColor: activeTab === tab.key ? "#fff" : "transparent",
+                background: activeTab === tab.key ? "#fff" : "transparent",
+                color: activeTab === tab.key ? "#1e293b" : "#64748b",
+                fontWeight: activeTab === tab.key ? 500 : 400,
+                cursor: "pointer", fontFamily: "inherit",
+                display: "flex", alignItems: "center", gap: 6,
+              }}
+            >
+              <i className={`ti ${tab.icon}`} style={{ fontSize: 14, color: tab.iconColor }} />
+              {tab.label}
+              <span style={{ fontSize: 11, fontWeight: 500, padding: "1px 6px", borderRadius: 20, background: tab.bg, color: tab.color }}>
+                {tab.count}
+              </span>
+            </button>
+          ))}
+        </div>
+
+        <div style={{ maxHeight: 300, overflowY: "auto" }}>
+          {items.length === 0 ? (
+            <div className="modal-empty" style={{ padding: "20px 18px" }}>No incidents recorded</div>
+          ) : items.map((item, i) => (
+            <div key={i} style={{
+              display: "flex", alignItems: "center", gap: 10,
+              padding: "10px 18px",
+              borderBottom: i < items.length - 1 ? "0.5px solid #f1f5f9" : "none",
+            }}>
+              <div style={{
+                width: 8, height: 8, borderRadius: "50%", flexShrink: 0,
+                background: activeTab === "lateEntry" ? "#E24B4A" : "#BA7517",
+              }} />
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 13, color: "#1e293b" }}>
+                  {item.slotName} · Grade {item.courseGrade}
+                </div>
+                <div style={{ fontSize: 12, color: "#64748b" }}>
+                  {item.date} ·{" "}
+                  {activeTab === "lateEntry"
+                    ? `Joined ${item.timeOfJoining}, class started ${item.liveClassStart}`
+                    : `Left ${item.timeOfLeaving}, class ended ${item.liveClassEnd}`
+                  }
+                </div>
+              </div>
+              <div style={{ fontSize: 11, color: "#94a3b8", flexShrink: 0 }}>
+                {formatOverage(item.overage)}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="modal-footer">
+          <button className="btn-close" onClick={onClose}>Close</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ─── Access helpers ───────────────────────────────────────────────────────────
 function classifySubject(slotName) {
   const s = (slotName || "").toLowerCase().trim()
@@ -1001,7 +1174,11 @@ function Dashboard({ user, accessProfile }) {
   const [photoMapData,       setPhotoMapData]         = useState({})
   const [teacherProfiles,            setTeacherProfiles]            = useState({})
   const [observationAssignmentData,  setObservationAssignmentData]  = useState(null)
+  const [liveClassIssuesData, setLiveClassIssuesData] = useState(null)
   const [activeObsAssignmentModal,   setActiveObsAssignmentModal]   = useState(false)
+  const [punctualityData,            setPunctualityData]            = useState(null)
+  const [activePunctualityModal,     setActivePunctualityModal]     = useState(false)
+  const [utilizationData,            setUtilizationData]            = useState(null)
 
   const hasTeamToManage = (accessProfile.directReportNickNames?.size ?? 0) > 0
     || ["POD Lead", "Science Lead", "STEM Lead"].includes(accessProfile.role)
@@ -1034,7 +1211,7 @@ function Dashboard({ user, accessProfile }) {
 
       // Remaining CSVs + Supabase run in parallel now that nameMap is ready
       let done = 0
-      const tryFinish = () => { done++; if (done === 5) setLoading(false) }
+      const tryFinish = () => { done++; if (done === 7) setLoading(false) }
 
       supabase.from("v_users_full")
         .select("nick_name, full_name, url_photo, role, main_pod, direct_manager_nama, level")
@@ -1057,6 +1234,20 @@ function Dashboard({ user, accessProfile }) {
         })
         .catch(() => {})
 
+      supabaseUtil.from("semesters")
+        .select("id")
+        .eq("name", "Semester 2 2025/2026")
+        .single()
+        .then(({ data: sem }) => {
+          if (!sem) return
+          return supabaseUtil.from("teacher_utilization")
+            .select("teacher_name, teacher_utilization_percentage, hours_as_teacher_in_mandatory_class, hours_as_teacher_in_non_mandatory_class, hours_as_mentor, minimum_50_teacher_utilization_status, minimum_75_teacher_utilization_status")
+            .eq("semester_id", sem.id)
+            .then(({ data }) => setUtilizationData(
+              (data ?? []).map(row => ({ ...row, teacher_name: nameMap[row.teacher_name] || row.teacher_name }))
+            ))
+        })
+        .catch(() => {})
 
       Papa.parse(CSV_STICKINESS, {
         download: true, header: true, skipEmptyLines: true,
@@ -1086,6 +1277,16 @@ function Dashboard({ user, accessProfile }) {
       Papa.parse(CSV_ASSIGNMENT_OBSERVASI, {
         download: true, header: true, skipEmptyLines: true,
         complete: (r) => { setObservationAssignmentData(processObservationAssignment(r.data, nameMap)); tryFinish() },
+        error: () => tryFinish(),
+      })
+      Papa.parse(CSV_LIVE_CLASS_ISSUES, {
+        download: true, header: true, skipEmptyLines: true,
+        complete: (r) => { setLiveClassIssuesData(processLiveClassIssues(r.data, nameMap)); tryFinish() },
+        error: () => tryFinish(),
+      })
+      Papa.parse(CSV_PUNCTUALITY, {
+        download: true, header: true, skipEmptyLines: true,
+        complete: (r) => { setPunctualityData(processPunctuality(r.data)); tryFinish() },
         error: () => tryFinish(),
       })
     }
@@ -1147,6 +1348,13 @@ function Dashboard({ user, accessProfile }) {
     if (teacherNick === accessProfile.nickName) return true
     if (isDirectReport(teacherNick)) return true
     return false
+  }
+
+  function canSeePunctuality(teacherNick, courseGrade, slotName) {
+    if (accessProfile.isSuperAdmin) return true
+    if (accessProfile.isGJ) return teacherNick === accessProfile.nickName
+    if (accessProfile.directReportNickNames?.has(teacherNick)) return true
+    return isInPodScope(courseGrade, slotName)
   }
 
   // ── Teachers list ─────────────────────────────────────────────────────────
@@ -1220,6 +1428,24 @@ function Dashboard({ user, accessProfile }) {
     : allPiket.filter(d => canSeeClassForTeacher(selTeacher, d.courseGrade, d.slotName))
 
   const observationAssignment = observationAssignmentData?.[selTeacher] ?? []
+  const liveClassIssues = (liveClassIssuesData?.[selTeacher] ?? [])
+    .filter(issue => {
+      if (noFilter) return true
+      if (!issue.grade) return true
+      return canSeeClassForTeacher(selTeacher, issue.grade, issue.slot)
+    })
+
+  const currentUtilization = utilizationData
+    ? utilizationData.find(row => row.teacher_name === selTeacher)
+    : null
+
+  const allPunctuality = punctualityData?.[selTeacher] ?? { lateEntry: [], earlyExit: [] }
+  const punctuality = noFilter
+    ? allPunctuality
+    : {
+        lateEntry: allPunctuality.lateEntry.filter(i => canSeePunctuality(selTeacher, i.courseGrade, i.slotName)),
+        earlyExit: allPunctuality.earlyExit.filter(i => canSeePunctuality(selTeacher, i.courseGrade, i.slotName)),
+      }
 
   const latestObs  = obsHistory[0] ?? null
   const belowAvg   = classes.filter((c) => c.latest.status?.toUpperCase() === "BELOW AVERAGE").length
@@ -1278,6 +1504,7 @@ function Dashboard({ user, accessProfile }) {
       <KelasDitinggalModal data={activeKDModal ? ditinggal : null} onClose={() => setActiveKDModal(false)} />
       <MembantuPiketModal data={activeKPModal ? piket : null} onClose={() => setActiveKPModal(false)} />
       <ObservationAssignmentModal data={activeObsAssignmentModal ? observationAssignment : null} onClose={() => setActiveObsAssignmentModal(false)} />
+      <PunctualityModal data={activePunctualityModal ? punctuality : null} onClose={() => setActivePunctualityModal(false)} />
 
       {/* ── Header ── */}
       <div className="header">
@@ -1429,6 +1656,61 @@ function Dashboard({ user, accessProfile }) {
               <AdminPanel currentUser={user} />
             ) : (
               <div key={selTeacher} className="view-fade">
+      {currentUtilization && (
+        <div className="util-strip">
+          <i className="ti ti-chart-bar" aria-hidden="true" style={{ fontSize: 18, color: '#64748b', marginRight: 18, flexShrink: 0 }} />
+
+          <div className="util-divider" />
+
+          <div className="util-item" style={{ marginRight: 18, marginLeft: 18 }}>
+            <div className="util-item-label">GJ utilization</div>
+            <div className="util-item-value">{currentUtilization.teacher_utilization_percentage}%</div>
+          </div>
+
+          <div className="util-divider" />
+
+          <div className="util-item" style={{ marginRight: 18, marginLeft: 18 }}>
+            <div className="util-item-label">Hours in class (as GJ)</div>
+            <div className="util-item-value">
+              {(currentUtilization.hours_as_teacher_in_mandatory_class ?? 0) + (currentUtilization.hours_as_teacher_in_non_mandatory_class ?? 0)} hrs
+            </div>
+          </div>
+
+          {(currentUtilization.hours_as_mentor ?? 0) > 0 && (
+            <>
+              <div className="util-divider" />
+              <div className="util-item" style={{ marginRight: 18, marginLeft: 18 }}>
+                <div className="util-item-label">Hours in class<br />(as mentor)</div>
+                <div className="util-item-value">{currentUtilization.hours_as_mentor} hrs</div>
+              </div>
+            </>
+          )}
+
+          <div className="util-divider" />
+
+          <div className="util-item" style={{ marginLeft: 18 }}>
+            <div className="util-item-label">Status</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginTop: 2 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span className="util-status-threshold">Min. 50%</span>
+                <span className={currentUtilization.minimum_50_teacher_utilization_status === 'BELOW MINIMUM' ? 'badge-util-red' : 'badge-util-green'}>
+                  {currentUtilization.minimum_50_teacher_utilization_status === 'MEET MINIMUM' ? 'Meet minimum'
+                   : currentUtilization.minimum_50_teacher_utilization_status === 'FULL CAPACITY' ? 'Full capacity'
+                   : 'Below minimum'}
+                </span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span className="util-status-threshold">Min. 75%</span>
+                <span className={currentUtilization.minimum_75_teacher_utilization_status === 'BELOW MINIMUM' ? 'badge-util-red' : 'badge-util-green'}>
+                  {currentUtilization.minimum_75_teacher_utilization_status === 'MEET MINIMUM' ? 'Meet minimum'
+                   : currentUtilization.minimum_75_teacher_utilization_status === 'FULL CAPACITY' ? 'Full capacity'
+                   : 'Below minimum'}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       <div style={{ display: "flex", gap: 12, marginBottom: 14 }}>
         <div style={{ flex: 1, background: "#fff", border: "0.5px solid #e2e8f0", borderRadius: 12, padding: "14px 16px", display: "flex", flexDirection: "column", gap: 10 }}>
           <div style={{ fontSize: 11, color: "#64748b" }}>Slot Performance</div>
@@ -1541,6 +1823,47 @@ function Dashboard({ user, accessProfile }) {
             </div>
           )
         })()}
+        {canSeePunctuality(selTeacher, null, null) && (
+          <div
+            style={{
+              flex: 1, background: "#fff", border: "0.5px solid #e2e8f0",
+              borderRadius: 12, padding: "14px 16px",
+              display: "flex", flexDirection: "column", gap: 10, cursor: "pointer",
+            }}
+            onClick={() => setActivePunctualityModal(true)}
+          >
+            <div style={{ fontSize: 11, color: "#64748b" }}>Punctuality</div>
+            <div style={{ display: "flex", gap: 20 }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                <div style={{ fontSize: 11, color: "#64748b", display: "flex", alignItems: "center", gap: 4 }}>
+                  <i className="ti ti-clock-x" style={{ fontSize: 14, color: "#E24B4A" }} /> Late entry
+                </div>
+                <div style={{
+                  fontSize: 30, fontWeight: 500, lineHeight: 1,
+                  color: punctuality.lateEntry.length > 0 ? "#E24B4A" : "#1e293b",
+                }}>
+                  {punctuality.lateEntry.length}
+                </div>
+              </div>
+              <div style={{ width: "0.5px", background: "#e2e8f0", alignSelf: "stretch", margin: "2px 0" }} />
+              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                <div style={{ fontSize: 11, color: "#64748b", display: "flex", alignItems: "center", gap: 4 }}>
+                  <i className="ti ti-door-exit" style={{ fontSize: 14, color: "#BA7517" }} /> Early exit
+                </div>
+                <div style={{
+                  fontSize: 30, fontWeight: 500, lineHeight: 1,
+                  color: punctuality.earlyExit.length > 0 ? "#BA7517" : "#1e293b",
+                }}>
+                  {punctuality.earlyExit.length}
+                </div>
+              </div>
+            </div>
+            <div style={{ borderTop: "0.5px solid #f1f5f9", paddingTop: 8, fontSize: 11, color: "#64748b", display: "flex", justifyContent: "space-between" }}>
+              <span>Current semester</span>
+              <span className="click-hint">Click for details</span>
+            </div>
+          </div>
+        )}
       </div>
       <div className="two-col">
         <div className="left-col">
@@ -1549,44 +1872,46 @@ function Dashboard({ user, accessProfile }) {
               <span className="sec-title">Stickiness index per slot</span>
               <span className="week-pill">Weekly</span>
             </div>
-            <table>
-              <thead><tr><th>Slot</th><th>Stickiness</th><th>Deviation</th><th>Status</th></tr></thead>
-              <tbody>
-                {classes.map((c) => {
-                  const pct       = Math.min(100, Math.max(-100, c.latest.stickiness))
-                  const fillWidth = (Math.abs(pct) / 100) * 50
-                  const fillLeft  = pct >= 0 ? 50 : 50 - fillWidth
-                  const devStr    = c.latest.deviation >= 0 ? `+${c.latest.deviation}` : `${c.latest.deviation}`
-                  const devColor  = c.latest.deviation >= 0 ? "#15803d" : "#dc2626"
-                  const streak    = computeStreak(c.history)
-                  return (
-                    <tr key={c.name} className={`row ${selClass === c.name ? "selected" : ""}`} onClick={() => handleClass(c.name)}>
-                      <td>{c.name}</td>
-                      <td>
-                        <div className="bar-wrap">
-                          <div className="bar" style={{ position: "relative" }}>
-                            <div style={{ position:"absolute", left:"50%", top:0, width:"1px", height:"100%", background:"rgba(0,0,0,0.15)" }} />
-                            <div className="bar-fill" style={{ position:"absolute", left:`${fillLeft}%`, width:`${fillWidth}%`, height:"100%", background: barColor(c.latest.status) }} />
+            <div style={{ overflowY: "auto", maxHeight: 180, border: "0.5px solid #e2e8f0", borderRadius: 8 }}>
+              <table>
+                <thead><tr><th>Slot</th><th>Stickiness</th><th>Deviation</th><th>Status</th></tr></thead>
+                <tbody>
+                  {classes.map((c) => {
+                    const pct       = Math.min(100, Math.max(-100, c.latest.stickiness))
+                    const fillWidth = (Math.abs(pct) / 100) * 50
+                    const fillLeft  = pct >= 0 ? 50 : 50 - fillWidth
+                    const devStr    = c.latest.deviation >= 0 ? `+${c.latest.deviation}` : `${c.latest.deviation}`
+                    const devColor  = c.latest.deviation >= 0 ? "#15803d" : "#dc2626"
+                    const streak    = computeStreak(c.history)
+                    return (
+                      <tr key={c.name} className={`row ${selClass === c.name ? "selected" : ""}`} onClick={() => handleClass(c.name)}>
+                        <td>{c.name}</td>
+                        <td>
+                          <div className="bar-wrap">
+                            <div className="bar" style={{ position: "relative" }}>
+                              <div style={{ position:"absolute", left:"50%", top:0, width:"1px", height:"100%", background:"rgba(0,0,0,0.15)" }} />
+                              <div className="bar-fill" style={{ position:"absolute", left:`${fillLeft}%`, width:`${fillWidth}%`, height:"100%", background: barColor(c.latest.status) }} />
+                            </div>
+                            {c.latest.stickiness}
                           </div>
-                          {c.latest.stickiness}
-                        </div>
-                      </td>
-                      <td style={{ color: devColor }}>{devStr}</td>
-                      <td>
-                        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                          {statusBadge(c.latest.status)}
-                          {streak >= 2 && (
-                            <span className="streak-badge" style={{ background: streak >= 3 ? "#fee2e2" : "#fef3c7", color: streak >= 3 ? "#dc2626" : "#d97706" }}>
-                              {streak}W
-                            </span>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
+                        </td>
+                        <td style={{ color: devColor }}>{devStr}</td>
+                        <td>
+                          <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                            {statusBadge(c.latest.status)}
+                            {streak >= 2 && (
+                              <span className="streak-badge" style={{ background: streak >= 3 ? "#fee2e2" : "#fef3c7", color: streak >= 3 ? "#dc2626" : "#d97706" }}>
+                                {streak}W
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
 
           <div className="section">
@@ -1615,6 +1940,55 @@ function Dashboard({ user, accessProfile }) {
                   <Line type="monotone" dataKey="dynAvg" stroke="#d97706" strokeWidth={1.5} strokeDasharray="5 4" dot={false} name="dynAvg" />
                 </LineChart>
               </ResponsiveContainer>
+            )}
+          </div>
+
+          {/* Live Class Issues */}
+          <div className="section">
+            <div className="sec-head">
+              <span className="sec-title">Live class issues</span>
+              {liveClassIssues.length > 0 && (
+                <span style={{
+                  fontSize: 11, fontWeight: 500, padding: "2px 8px",
+                  borderRadius: 20, background: "#fcebeb", color: "#a32d2d"
+                }}>
+                  {liveClassIssues.length} issues
+                </span>
+              )}
+            </div>
+
+            {liveClassIssues.length === 0 ? (
+              <div className="empty-state">
+                <span>No issues recorded</span>
+              </div>
+            ) : (
+              <div style={{
+                display: "flex", flexDirection: "column", gap: 0,
+                overflowY: "auto", maxHeight: 220,
+                border: "0.5px solid #e2e8f0", borderRadius: 8
+              }}>
+                {liveClassIssues.map((issue, i) => (
+                  <div key={i} style={{
+                    display: "flex", flexDirection: "column", gap: 2,
+                    padding: "8px 10px",
+                    borderBottom: i < liveClassIssues.length - 1 ? "0.5px solid #e2e8f0" : "none"
+                  }}>
+                    <div style={{ fontSize: 11, fontWeight: 500, color: "#1e293b" }}>
+                      {issue.problem}
+                    </div>
+                    <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                      <span style={{ fontSize: 10, color: "#64748b" }}>{issue.slot}</span>
+                      <span style={{ fontSize: 9, color: "#d1d5db" }}>·</span>
+                      <span style={{ fontSize: 10, color: "#94a3b8" }}>{issue.date}</span>
+                    </div>
+                    {issue.reason && issue.reason !== "—" && (
+                      <div style={{ fontSize: 10, color: "#94a3b8", fontStyle: "italic" }}>
+                        {issue.reason}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
             )}
           </div>
         </div>
@@ -1750,6 +2124,61 @@ function Dashboard({ user, accessProfile }) {
       ) : (
         /* ── Guru biasa: layout tanpa sidebar ── */
         <div className="app-body">
+          {currentUtilization && (
+            <div className="util-strip">
+              <i className="ti ti-chart-bar" aria-hidden="true" style={{ fontSize: 18, color: '#64748b', marginRight: 18, flexShrink: 0 }} />
+
+              <div className="util-divider" />
+
+              <div className="util-item" style={{ marginRight: 18, marginLeft: 18 }}>
+                <div className="util-item-label">Teacher utilization</div>
+                <div className="util-item-value">{currentUtilization.teacher_utilization_percentage}%</div>
+              </div>
+
+              <div className="util-divider" />
+
+              <div className="util-item" style={{ marginRight: 18, marginLeft: 18 }}>
+                <div className="util-item-label">Hours in class<br />(as GJ)</div>
+                <div className="util-item-value">
+                  {(currentUtilization.hours_as_teacher_in_mandatory_class ?? 0) + (currentUtilization.hours_as_teacher_in_non_mandatory_class ?? 0)} hrs
+                </div>
+              </div>
+
+              {(currentUtilization.hours_as_mentor ?? 0) > 0 && (
+                <>
+                  <div className="util-divider" />
+                  <div className="util-item" style={{ marginRight: 18, marginLeft: 18 }}>
+                    <div className="util-item-label">Hours in class<br />(as mentor)</div>
+                    <div className="util-item-value">{currentUtilization.hours_as_mentor} hrs</div>
+                  </div>
+                </>
+              )}
+
+              <div className="util-divider" />
+
+              <div className="util-item" style={{ marginLeft: 18 }}>
+                <div className="util-item-label">Status</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginTop: 2 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span className="util-status-threshold">Min. 50%</span>
+                    <span className={currentUtilization.minimum_50_teacher_utilization_status === 'BELOW MINIMUM' ? 'badge-util-red' : 'badge-util-green'}>
+                      {currentUtilization.minimum_50_teacher_utilization_status === 'MEET MINIMUM' ? 'Meet minimum'
+                       : currentUtilization.minimum_50_teacher_utilization_status === 'FULL CAPACITY' ? 'Full capacity'
+                       : 'Below minimum'}
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span className="util-status-threshold">Min. 75%</span>
+                    <span className={currentUtilization.minimum_75_teacher_utilization_status === 'BELOW MINIMUM' ? 'badge-util-red' : 'badge-util-green'}>
+                      {currentUtilization.minimum_75_teacher_utilization_status === 'MEET MINIMUM' ? 'Meet minimum'
+                       : currentUtilization.minimum_75_teacher_utilization_status === 'FULL CAPACITY' ? 'Full capacity'
+                       : 'Below minimum'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
           <div style={{ display: "flex", gap: 12, marginBottom: 14 }}>
             <div style={{ flex: 1, background: "#fff", border: "0.5px solid #e2e8f0", borderRadius: 12, padding: "14px 16px", display: "flex", flexDirection: "column", gap: 10 }}>
               <div style={{ fontSize: 11, color: "#64748b" }}>Slot Performance</div>
@@ -1862,6 +2291,47 @@ function Dashboard({ user, accessProfile }) {
                 </div>
               )
             })()}
+            {canSeePunctuality(selTeacher, null, null) && (
+              <div
+                style={{
+                  flex: 1, background: "#fff", border: "0.5px solid #e2e8f0",
+                  borderRadius: 12, padding: "14px 16px",
+                  display: "flex", flexDirection: "column", gap: 10, cursor: "pointer",
+                }}
+                onClick={() => setActivePunctualityModal(true)}
+              >
+                <div style={{ fontSize: 11, color: "#64748b" }}>Punctuality</div>
+                <div style={{ display: "flex", gap: 20 }}>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                    <div style={{ fontSize: 11, color: "#64748b", display: "flex", alignItems: "center", gap: 4 }}>
+                      <i className="ti ti-clock-x" style={{ fontSize: 14, color: "#E24B4A" }} /> Late entry
+                    </div>
+                    <div style={{
+                      fontSize: 30, fontWeight: 500, lineHeight: 1,
+                      color: punctuality.lateEntry.length > 0 ? "#E24B4A" : "#1e293b",
+                    }}>
+                      {punctuality.lateEntry.length}
+                    </div>
+                  </div>
+                  <div style={{ width: "0.5px", background: "#e2e8f0", alignSelf: "stretch", margin: "2px 0" }} />
+                  <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                    <div style={{ fontSize: 11, color: "#64748b", display: "flex", alignItems: "center", gap: 4 }}>
+                      <i className="ti ti-door-exit" style={{ fontSize: 14, color: "#BA7517" }} /> Early exit
+                    </div>
+                    <div style={{
+                      fontSize: 30, fontWeight: 500, lineHeight: 1,
+                      color: punctuality.earlyExit.length > 0 ? "#BA7517" : "#1e293b",
+                    }}>
+                      {punctuality.earlyExit.length}
+                    </div>
+                  </div>
+                </div>
+                <div style={{ borderTop: "0.5px solid #f1f5f9", paddingTop: 8, fontSize: 11, color: "#64748b", display: "flex", justifyContent: "space-between" }}>
+                  <span>Current semester</span>
+                  <span className="click-hint">Click for details</span>
+                </div>
+              </div>
+            )}
           </div>
           <div className="two-col">
             <div className="left-col">
