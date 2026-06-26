@@ -20,7 +20,7 @@ const SUPER_ADMIN_EMAILS = new Set([
   "fatah.abdul@colearn.id",
   "anatasya.ellena@colearn.id",
   "ima.aruan@colearn.id",
-  
+  "tyas.ahadriansya@colearn.id",
 ])
 
 const ADMIN_EMAILS = new Set([
@@ -894,6 +894,11 @@ function PunctualityModal({ data, onClose }) {
 // ─── Access helpers ───────────────────────────────────────────────────────────
 function classifySubject(slotName) {
   const s = (slotName || "").toLowerCase().trim()
+  if (s.includes("pengganti")) {
+    const after = s.split("pengganti")[1] || ""
+    if (after.includes("matematika") || after.includes("mtk")) return "matematika"
+    if (after.includes("ipa") || after.includes("fisika") || after.includes("kimia")) return "science"
+  }
   if (s.startsWith("matematika") || s.startsWith("persiapan") || s === "matematika lanjut") return "matematika"
   if (s.startsWith("ipa") || s.startsWith("fisika") || s.startsWith("kimia")) return "science"
   return "other"
@@ -1903,7 +1908,7 @@ function Dashboard({ user, accessProfile }) {
               <span className="sec-title">Stickiness index per slot</span>
               <span className="week-pill">Weekly</span>
             </div>
-            <div style={{ overflowY: "auto", maxHeight: 180, border: "0.5px solid #e2e8f0", borderRadius: 8 }}>
+            <div className="obs-scroll">
               <table>
                 <thead><tr><th>Slot</th><th>Stickiness</th><th>Deviation</th><th>Status</th></tr></thead>
                 <tbody>
