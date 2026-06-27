@@ -22,7 +22,6 @@ const SUPER_ADMIN_EMAILS = new Set([
   "fatah.abdul@colearn.id",
   "anatasya.ellena@colearn.id",
   "ima.aruan@colearn.id",
-  "tyas.ahadriansya@colearn.id",
 ])
 
 const ADMIN_EMAILS = new Set([
@@ -1534,9 +1533,20 @@ function Dashboard({ user, accessProfile }) {
     return isInPodScope(courseGrade, slotName)
   }
 
+  // Visibility of the Punctuality KPI card itself: shown for any GJ whose dashboard
+  // is reachable at all (self, direct report, or in pod/jenjang scope). The detailed
+  // list inside the modal stays restricted per-item via canSeePunctuality().
+  function canSeePunctualityCard(teacherNick) {
+    if (accessProfile.isSuperAdmin) return true
+    if (teacherNick === accessProfile.nickName) return true
+    if (isDirectReport(teacherNick)) return true
+    if (accessProfile.isGJ) return false
+    return (stickinessData?.[teacherNick] ?? []).some(c => isInPodScope(c.courseGrade, c.slotName))
+  }
+
   function canSeeEventAttendance(teacherNick) {
     if (accessProfile.isSuperAdmin) return true
-    if (accessProfile.isGJ) return teacherNick === accessProfile.nickName
+    if (teacherNick === accessProfile.nickName) return true
     if (isDirectReport(teacherNick)) return true
     return false
   }
@@ -2014,7 +2024,7 @@ function Dashboard({ user, accessProfile }) {
             </div>
           )
         })()}
-        {canSeePunctuality(selTeacher, null, null) && (
+        {canSeePunctualityCard(selTeacher) && (
           <div
             style={{
               flex: 1, background: "#fff", border: "0.5px solid #e2e8f0",
@@ -2522,7 +2532,7 @@ function Dashboard({ user, accessProfile }) {
                 </div>
               )
             })()}
-            {canSeePunctuality(selTeacher, null, null) && (
+            {canSeePunctualityCard(selTeacher) && (
               <div
                 style={{
                   flex: 1, background: "#fff", border: "0.5px solid #e2e8f0",
