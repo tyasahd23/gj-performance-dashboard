@@ -2342,7 +2342,7 @@ function Dashboard({ user, accessProfile }) {
           <div className="section">
             <div className="sec-head">
               <span className="sec-title">Leave per Class</span>
-              <span className="cuti-pill">SMT 2 2025/2026</span>
+              <span className="cuti-pill">Hover bar for dates</span>
             </div>
             {allClassNames.length === 0 ? (
               <div className="empty-state"><span>No leave data yet</span></div>
@@ -2835,7 +2835,7 @@ function Dashboard({ user, accessProfile }) {
               <div className="section">
                 <div className="sec-head">
                   <span className="sec-title">Leave per Class</span>
-                  <span className="cuti-pill">SMT 2 2025/2026</span>
+                  <span className="cuti-pill">Hover bar for dates</span>
                 </div>
                 {allClassNames.length === 0 ? (
                   <div className="empty-state"><span>No leave data yet</span></div>
