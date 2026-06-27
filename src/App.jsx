@@ -1071,7 +1071,7 @@ function Overview({ stickinessData, observasiData, teachers, onSelectTeacher, fi
       {/* KPI */}
       <div className="cards-row">
         <div className="card">
-          <div className="card-label">Guru Juara needing attention</div>
+          <div className="card-label">Guru Juara Needing Attention</div>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <div className={`card-value ${colorWithIssue}`}>{withIssue.length}</div>
             <span className={`badge card-badge ${badgeWithIssue}`}>{pctWithIssue}%</span>
@@ -1079,31 +1079,31 @@ function Overview({ stickinessData, observasiData, teachers, onSelectTeacher, fi
           <div className="card-sub">out of {teachers.length} active Guru Juara</div>
         </div>
         <div className="card">
-          <div className="card-label">Classes below average</div>
+          <div className="card-label">Slots Below Average</div>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <div className={`card-value ${colorBelowAvg}`}>{totalBelowAvg}</div>
-            <span className={`badge card-badge ${badgeBelowAvg}`}>{pctBelowAvg}% dari total</span>
+            <span className={`badge card-badge ${badgeBelowAvg}`}>{pctBelowAvg}% of total</span>
           </div>
-          <div className="card-sub">out of {totalClasses} classes</div>
+          <div className="card-sub">out of {totalClasses} slots</div>
         </div>
         <div className="card">
-          <div className="card-label">Below average ≥ 3 weeks</div>
+          <div className="card-label">Below Average ≥ 3 Weeks</div>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <div className={`card-value ${colorLongStreak}`}>{totalLongStreak}</div>
             {totalBelowAvg === 0 ? (
               <span className="badge card-badge bb-green">—</span>
             ) : (
-              <span className={`badge card-badge ${badgeLongStreak}`}>{pctLongStreak}% dari {totalBelowAvg} kelas</span>
+              <span className={`badge card-badge ${badgeLongStreak}`}>{pctLongStreak}% of {totalBelowAvg} slots</span>
             )}
           </div>
-          <div className="card-sub">classes below average</div>
+          <div className="card-sub">slots below average</div>
         </div>
         <div className="card">
-          <div className="card-label">Observation: need coaching</div>
+          <div className="card-label">Observation: Need Coaching</div>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <div className={`card-value ${totalNeedImprove > 0 ? "orange" : "green"}`}>{totalNeedImprove}</div>
             {totalNeedImprove > 0 ? (
-              <span className="badge card-badge bb-orange">{pctNeedImprove}% dari total</span>
+              <span className="badge card-badge bb-orange">{pctNeedImprove}% of total</span>
             ) : (
               <span className="badge card-badge bb-green">All passed</span>
             )}
@@ -1115,7 +1115,7 @@ function Overview({ stickinessData, observasiData, teachers, onSelectTeacher, fi
       {/* Heatmap per guru bermasalah */}
       <div className="section">
         <div className="sec-head">
-          <span className="sec-title">Guru Juara with classes below average</span>
+          <span className="sec-title">Guru Juara with Slots Below Average</span>
           <span className="ov-safe-note">{withIssue.length} out of {teachers.length} Guru Juara need attention</span>
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
