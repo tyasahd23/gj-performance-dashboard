@@ -1215,8 +1215,8 @@ function UserAvatar({ user, accessProfile }) {
 
   const fotoUrl = accessProfile?.fotoUrl
   const fullName = user.displayName || user.email
-  const nickName = accessProfile?.nickName || fullName
-  const role = accessProfile?.role || ""
+  const nickName = accessProfile?.nickName || fullName.split(" ")[0]
+  const role = accessProfile?.role || (accessProfile?.isSuperAdmin ? "Admin" : "")
 
   const initials = user.email
     .split("@")[0]
