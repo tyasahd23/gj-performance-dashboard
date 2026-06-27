@@ -5,6 +5,15 @@ Semua perubahan penting pada project ini didokumentasikan di file ini.
 Format berdasarkan [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
+### Changed
+- **User avatar di header kanan** (`UserAvatar`, `.user-avatar-wrapper`) sekarang dibungkus pill putih (`border-radius: 999px`), foto/inisial dan nama panggilan + role lebih kontras di atas header biru. Sekaligus perbaiki typo lama `width: 32x` → `32px` pada `.user-avatar-img`, dan sesuaikan warna fallback `.user-avatar-initials` (background biru header) supaya tetap terbaca di pill putih.
+- **Fallback nama panggilan & role untuk super admin tanpa row di `v_users_full`**: `nickName` sekarang fallback ke kata pertama `user.displayName` (mis. "Fatah" bukan "Fatah Abdul"), dan `role` fallback ke `"Admin"` jika `accessProfile.isSuperAdmin` true dan kolom `role` kosong. Jika row-nya ada di database, data database tetap diprioritaskan apa adanya (termasuk `role` aslinya, bukan dipaksa "Admin").
+- Sub-header `header-v3-bottom` (nama, role badge, pod, "Reports to: ...") sekarang juga tampil di GJ view, sebelumnya hanya muncul di manager view. Memakai `teacherProfiles[selTeacher]` yang sama, dengan `selTeacher` = `accessProfile.nickName` sehingga otomatis menampilkan profile GJ yang login.
+
+### Fixed
+- **Loading data lambat (kadang sampai ~15 detik)** — `loadAll()` di `App.jsx` sebelumnya menunggu (`await`) fetch `CSV_NAMEMAP` selesai dulu sebelum memulai 8 fetch CSV/Supabase lainnya, menambah satu round-trip network penuh di setiap load. Sekarang semua fetch dimulai paralel sejak awal lewat `nameMapPromise`; processor yang butuh nameMap (`processObservasi`, `processCuti`, `processCoaching`, `processObservationAssignment`, `processLiveClassIssues`, `processEventAttendance`, mapping `teacher_utilization`) tetap menunggu promise itu resolve sebelum diproses, sehingga proteksi race condition (full name vs nick name di sidebar) tidak berubah. Hasil pengukuran di DevTools: ~15 detik → ~5 detik.
+
+## [0.3.0] - 2026-06-26
 ### Added
 - **Section GJ Utilization** — strip ringkasan utilisasi guru di bagian atas detail teacher (manager view & GJ view).
   - Integrasi project Supabase baru `supabaseUtil`, query tabel `semesters` (filter `name = "Semester 2 2025/2026"`) lalu `teacher_utilization` untuk semester tersebut, dengan normalisasi `teacher_name` lewat `nameMap`.
