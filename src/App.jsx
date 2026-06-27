@@ -490,24 +490,32 @@ function StickinessTooltip({ active, payload, label }) {
 }
 
 function CutiBar({ count, dates, maks }) {
-  const [show, setShow] = useState(false)
+  const [pos, setPos] = useState(null)
   const safeCount = typeof count === "number" ? count : 0
   const pct    = Math.min(100, (safeCount / maks) * 100)
   const hampir = safeCount / maks >= 0.75
   const color  = safeCount >= maks ? "#dc2626" : hampir ? "#d97706" : "#16a34a"
   return (
-    <div className="cuti-bar-wrap" onMouseEnter={() => setShow(true)} onMouseLeave={() => setShow(false)}>
+    <div
+      className="cuti-bar-wrap"
+      onMouseEnter={(e) => {
+        const r = e.currentTarget.getBoundingClientRect()
+        setPos({ x: r.left, y: r.top - 8 })
+      }}
+      onMouseLeave={() => setPos(null)}
+    >
       <div className="cuti-bar">
         <div className="cuti-bar-fill" style={{ width: `${pct}%`, background: color }} />
       </div>
       <span className="cuti-count">{safeCount}/{maks}</span>
       {safeCount >= maks && <span className="badge b-bw" style={{ fontSize: 10 }}>Limit reached</span>}
       {safeCount < maks && hampir && <span className="badge b-need" style={{ fontSize: 10 }}>Near limit</span>}
-      {show && dates.length > 0 && (
-        <div className="cuti-tooltip">
+      {pos && dates.length > 0 && createPortal(
+        <div className="cuti-tooltip" style={{ left: pos.x, top: pos.y }}>
           <div className="cuti-tooltip-title">Dates left</div>
           {dates.map((d, i) => <div key={i} className="cuti-tooltip-date">{formatDate(d)}</div>)}
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   )

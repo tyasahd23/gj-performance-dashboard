@@ -308,9 +308,10 @@ tr.row.selected td { background: #eff6ff; }
 .cuti-count { font-size: 12px; color: #1e293b; min-width: 24px; }
 .cuti-note { font-size: 11px; color: #94a3b8; margin-top: 10px; }
 .cuti-tooltip {
-  position: absolute; bottom: calc(100% + 8px); left: 0;
+  position: fixed; transform: translateY(-100%);
   background: #1e293b; color: white; border-radius: 8px;
-  padding: 8px 12px; font-size: 11px; white-space: nowrap; z-index: 100; min-width: 140px;
+  padding: 8px 12px; font-size: 11px; white-space: nowrap; z-index: 9999; min-width: 140px;
+  pointer-events: none;
 }
 .cuti-tooltip-title { font-weight: 500; margin-bottom: 4px; color: #94a3b8; font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em; }
 .cuti-tooltip-date { padding: 2px 0; color: white; }
