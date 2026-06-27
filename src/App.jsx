@@ -1911,7 +1911,7 @@ function Dashboard({ user, accessProfile }) {
 
           <div className="util-item" style={{ marginLeft: 18 }}>
             <div className="util-item-label">Status</div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginTop: 2 }}>
+            <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 14, rowGap: 6, marginTop: 2 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <span className="util-status-threshold">Min. 50%</span>
                 <span className={currentUtilization.minimum_50_teacher_utilization_status === 'BELOW MINIMUM' ? 'badge-util-red' : 'badge-util-green'}>
@@ -1932,7 +1932,7 @@ function Dashboard({ user, accessProfile }) {
           </div>
         </div>
       )}
-      <div style={{ display: "flex", gap: 12, marginBottom: 14 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: 12, marginBottom: 14 }}>
         <div style={{ flex: 1, background: "#fff", border: "0.5px solid #e2e8f0", borderRadius: 12, padding: "14px 16px", display: "flex", flexDirection: "column", gap: 10 }}>
           <div style={{ fontSize: 13, color: "#64748b" }}>Slot Performance</div>
           <div style={{ display: "flex", flexDirection: "row", gap: 14, alignItems: "center" }}>
@@ -2419,7 +2419,7 @@ function Dashboard({ user, accessProfile }) {
 
               <div className="util-item" style={{ marginLeft: 18 }}>
                 <div className="util-item-label">Status</div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginTop: 2 }}>
+                <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 14, rowGap: 6, marginTop: 2 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                     <span className="util-status-threshold">Min. 50%</span>
                     <span className={currentUtilization.minimum_50_teacher_utilization_status === 'BELOW MINIMUM' ? 'badge-util-red' : 'badge-util-green'}>
@@ -2440,7 +2440,7 @@ function Dashboard({ user, accessProfile }) {
               </div>
             </div>
           )}
-          <div style={{ display: "flex", gap: 12, marginBottom: 14 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: 12, marginBottom: 14 }}>
             <div style={{ flex: 1, background: "#fff", border: "0.5px solid #e2e8f0", borderRadius: 12, padding: "14px 16px", display: "flex", flexDirection: "column", gap: 10 }}>
               <div style={{ fontSize: 13, color: "#64748b" }}>Slot Performance</div>
               <div style={{ display: "flex", flexDirection: "row", gap: 14, alignItems: "center" }}>
