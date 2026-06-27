@@ -1709,21 +1709,19 @@ function Dashboard({ user, accessProfile }) {
           </div>
           <UserAvatar user={user} accessProfile={accessProfile} />
         </div>
-        {isManagerView && (
-          <div className={`header-v3-bottom${activeView === "teacher" ? " visible" : ""}`}>
-            {selTeacher && (() => {
-              const p = teacherProfiles[selTeacher]
-              return (
-                <>
-                  <span className="hb-text">{selTeacher}</span>
-                  {p?.role    && <><span className="hb-sep">·</span><span className="hb-role-badge">{p.role}</span></>}
-                  {p?.pod     && <><span className="hb-sep">·</span><span className="hb-text">{p.pod}</span></>}
-                  {p?.manager && <><span className="hb-sep">·</span><span className="hb-text">Reports to: {p.manager}</span></>}
-                </>
-              )
-            })()}
-          </div>
-        )}
+        <div className={`header-v3-bottom${(!isManagerView || activeView === "teacher") ? " visible" : ""}`}>
+          {selTeacher && (() => {
+            const p = teacherProfiles[selTeacher]
+            return (
+              <>
+                <span className="hb-text">{selTeacher}</span>
+                {p?.role    && <><span className="hb-sep">·</span><span className="hb-role-badge">{p.role}</span></>}
+                {p?.pod     && <><span className="hb-sep">·</span><span className="hb-text">{p.pod}</span></>}
+                {p?.manager && <><span className="hb-sep">·</span><span className="hb-text">Reports to: {p.manager}</span></>}
+              </>
+            )
+          })()}
+        </div>
       </div>
 
       {isManagerView ? (
