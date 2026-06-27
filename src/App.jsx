@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { createPortal } from "react-dom"
 import { onAuthStateChanged, signOut } from "firebase/auth"
 import { auth } from "./firebase"
@@ -13,6 +13,8 @@ import Login from "./Login"
 import Greeting from "./Greeting"
 import AdminPanel from "./AdminPanel"
 import "./App.css"
+
+const SEMESTER_LABEL = "Semester 2 · 2025/2026"
 
 // ─── Access control ───────────────────────────────────────────────────────────
 const SUPER_ADMIN_EMAILS = new Set([
@@ -439,7 +441,7 @@ function processPunctuality(rows) {
       date:           (row["date"]             || "").trim(),
       courseGrade:    (row["course_grade"]      || "").trim(),
       slotName:       (row["slot_name"]         || "").trim(),
-      timeOfJoining:  (row["time_of_joining"]   || "").trim(),
+      timeOfJoining:  (row["time_of joining"]    || "").trim(),
       liveClassStart: (row["live_class_start"]  || "").trim(),
       timeOfLeaving:  (row["time_of_leaving"]   || "").trim(),
       liveClassEnd:   (row["live_class_end"]    || "").trim(),
@@ -467,6 +469,22 @@ function ChartLegend() {
         <div className="legend-dashed" />
         <span>Dynamic Average Stickiness</span>
       </div>
+    </div>
+  )
+}
+
+function StickinessTooltip({ active, payload, label }) {
+  if (!active || !payload?.length) return null
+  const point = payload[0]?.payload
+  return (
+    <div style={{ fontSize: 12, borderRadius: 8, border: "0.5px solid #e5e7eb", background: "#fff", padding: "8px 10px" }}>
+      <div style={{ fontWeight: 600, marginBottom: 4 }}>{label}</div>
+      {payload.map((p) => (
+        <div key={p.dataKey}>{p.dataKey === "dynAvg" ? "Dynamic Average Stickiness" : "Stickiness"}: {p.value}</div>
+      ))}
+      {point?.status && (
+        <div style={{ marginTop: 4 }}>{statusBadge(point.status)}</div>
+      )}
     </div>
   )
 }
@@ -756,6 +774,10 @@ function ObservationAssignmentModal({ data, onClose }) {
         <div className="modal-header">
           <div className="modal-meta">
             <div className="modal-class">Observation Assignment</div>
+            <div style={{ display: "flex", gap: 12, marginTop: 4 }}>
+              <a className="va-meta-link" href="https://docs.google.com/forms/d/e/1FAIpQLSeafr-RUbSrsjTYCnWuzb6dn3_Rvpod3KMAWD5AoOkAid7vgw/viewform?usp=header" target="_blank" rel="noopener noreferrer">Form →</a>
+              <a className="va-meta-link" href="https://docs.google.com/spreadsheets/d/16H03-AeYJS7c1JfUOgryNaEIGHyhOIry36QOQuS4p3s/edit?gid=838717209#gid=838717209" target="_blank" rel="noopener noreferrer">Responses →</a>
+            </div>
           </div>
         </div>
         <div className="modal-body">
@@ -851,7 +873,7 @@ function PunctualityModal({ data, onClose }) {
           ))}
         </div>
 
-        <div style={{ maxHeight: 300, overflowY: "auto" }}>
+        <div className="obs-scroll" style={{ maxHeight: 300 }}>
           {items.length === 0 ? (
             <div className="modal-empty" style={{ padding: "20px 18px" }}>No incidents recorded</div>
           ) : items.map((item, i) => (
@@ -1176,8 +1198,89 @@ function Overview({ stickinessData, observasiData, teachers, onSelectTeacher, fi
   )
 }
 
+// ─── User avatar ──────────────────────────────────────────────────────────────
+function UserAvatar({ user, accessProfile }) {
+  const [open, setOpen] = useState(false)
+  const [dropdownPos, setDropdownPos] = useState(null)
+  const wrapperRef = useRef(null)
+  const dropdownRef = useRef(null)
+
+  const fotoUrl = accessProfile?.fotoUrl
+  const fullName = user.displayName || user.email
+  const nickName = accessProfile?.nickName || fullName
+  const role = accessProfile?.role || ""
+
+  const initials = user.email
+    .split("@")[0]
+    .split(".")
+    .map(s => s[0]?.toUpperCase() ?? "")
+    .join("")
+    .slice(0, 2) || "?"
+
+  useEffect(() => {
+    if (!open) return
+    const handleClickOutside = (e) => {
+      if (wrapperRef.current?.contains(e.target)) return
+      if (dropdownRef.current?.contains(e.target)) return
+      setOpen(false)
+    }
+    document.addEventListener("mousedown", handleClickOutside)
+    return () => document.removeEventListener("mousedown", handleClickOutside)
+  }, [open])
+
+  const toggleOpen = () => {
+    if (!open && wrapperRef.current) {
+      const rect = wrapperRef.current.getBoundingClientRect()
+      setDropdownPos({ top: rect.bottom + 8, right: window.innerWidth - rect.right })
+    }
+    setOpen(o => !o)
+  }
+
+  return (
+    <div className="user-avatar-wrapper" ref={wrapperRef} onClick={toggleOpen}>
+      {fotoUrl ? (
+        <img
+          src={fotoUrl}
+          alt={fullName}
+          className="user-avatar-img"
+          onError={(e) => { e.currentTarget.style.display = "none" }}
+        />
+      ) : (
+        <div className="user-avatar-initials">{initials}</div>
+      )}
+      <div className="user-avatar-info">
+        <div className="user-avatar-nickname">{nickName}</div>
+        <div className="user-avatar-role">{role}</div>
+      </div>
+      {open && dropdownPos && createPortal(
+        <div
+          ref={dropdownRef}
+          className="user-avatar-dropdown"
+          style={{ top: dropdownPos.top, right: dropdownPos.right }}
+        >
+          <div className="user-avatar-dropdown-name">{fullName}</div>
+          <div
+            className="user-avatar-dropdown-logout"
+            onClick={() => signOut(auth)}
+          >
+            Logout
+          </div>
+        </div>,
+        document.body
+      )}
+    </div>
+  )
+}
+
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 function Dashboard({ user, accessProfile }) {
+  const trendSectionRef = useRef(null)
+  const scrollToTrendRef = useRef(false)
+  const trendCloseTimer = useRef(null)
+  const trendWasMountedRef = useRef(false)
+  const [trendMounted, setTrendMounted] = useState(false)
+  const [trendClosing, setTrendClosing] = useState(false)
+  const [lastSelClass, setLastSelClass] = useState(null)
   const [stickinessData,     setStickinessData]       = useState(null)
   const [observasiData,      setObservasiData]        = useState(null)
   const [cutiData,           setCutiData]             = useState(null)
@@ -1193,6 +1296,7 @@ function Dashboard({ user, accessProfile }) {
   const [activeKPModal,      setActiveKPModal]        = useState(false)
   const [activeView,         setActiveView]           = useState("overview")
   const [sidebarSearch,      setSidebarSearch]        = useState("")
+  const [sidebarCollapsed,   setSidebarCollapsed]     = useState(false)
   const [photoMapData,       setPhotoMapData]         = useState({})
   const [teacherProfiles,            setTeacherProfiles]            = useState({})
   const [observationAssignmentData,  setObservationAssignmentData]  = useState(null)
@@ -1338,6 +1442,39 @@ function Dashboard({ user, accessProfile }) {
     }
   }, [loading])
 
+  useEffect(() => {
+    if (!scrollToTrendRef.current || !trendMounted) return
+    // If the box just mounted, it's still mid slide-down animation (translateY) — scrollIntoView
+    // would measure its not-yet-settled position and under-scroll. Let the onAnimationEnd handler
+    // on the trend box trigger the scroll once it reaches its final position instead.
+    if (!trendWasMountedRef.current) return
+    scrollToTrendRef.current = false
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => trendSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "end" }))
+    })
+  }, [selClass, trendMounted])
+
+  useEffect(() => {
+    trendWasMountedRef.current = trendMounted
+  }, [trendMounted])
+
+  // Trend box hanya muncul setelah sebuah slot dipilih, dengan animasi slide turun/naik.
+  useEffect(() => {
+    if (selClass) {
+      setLastSelClass(selClass)
+      setTrendClosing(false)
+      setTrendMounted(true)
+      return
+    }
+    if (!trendMounted) return
+    setTrendClosing(true)
+    trendCloseTimer.current = setTimeout(() => {
+      setTrendMounted(false)
+      setTrendClosing(false)
+    }, 320)
+    return () => clearTimeout(trendCloseTimer.current)
+  }, [selClass])
+
   if (loading) return <div className="loading">Loading data...</div>
 
   // ── Access filter ────────────────────────────────────────────────────────────
@@ -1372,6 +1509,8 @@ function Dashboard({ user, accessProfile }) {
   }
 
   function canSeeObservationAssignment(teacherNick) {
+    const teacherLevel = teacherProfiles[teacherNick]?.level ?? null
+    if (teacherLevel !== null && teacherLevel <= 2) return false
     if (accessProfile.isSuperAdmin) return true
     if (teacherNick === accessProfile.nickName) return true
     if (isDirectReport(teacherNick)) return true
@@ -1496,13 +1635,23 @@ function Dashboard({ user, accessProfile }) {
     ? Math.round(onTrackCount / classes.length * 100)
     : null
   const obsPassedCount = obsHistory.filter((o) => o.status?.toLowerCase() === "passed").length
-  const chartData  = selClass ? classes.find((c) => c.name === selClass)?.history ?? [] : []
+  // Saat box trend menutup, tetap pakai kelas terakhir agar chart tidak kosong di tengah animasi.
+  const trendDisplayClass = selClass ?? (trendClosing ? lastSelClass : null)
+  const chartData  = trendDisplayClass ? classes.find((c) => c.name === trendDisplayClass)?.history ?? [] : []
   const allClassNames = Array.from(
     new Set([...classes.map((c) => c.name), ...Object.keys(cutiKelas)])
   ).sort((a, b) => classSortKey(a) - classSortKey(b))
 
   function handleTeacher(t) { setSelTeacher(t); setSelClass(null); setActiveView("teacher") }
-  function handleClass(n)   { setSelClass((p) => (p === n ? null : n)) }
+  function handleTrendOpenAnimationEnd(e) {
+    if (e.animationName !== "trendSlideDown" || !scrollToTrendRef.current) return
+    scrollToTrendRef.current = false
+    trendSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "end" })
+  }
+  function handleClass(n) {
+    setSelClass((p) => (p === n ? null : n))
+    if (n !== selClass) scrollToTrendRef.current = true
+  }
 
   // ── Sidebar teacher summaries ──────────────────────────────────────────────
   function getVisibleClasses(teacher) {
@@ -1548,7 +1697,7 @@ function Dashboard({ user, accessProfile }) {
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <img src="/favicon.png" alt="CoLearn" style={{ width: 38, height: 38, borderRadius: 6 }} />
             <div>
-              <div className="header-title">Performance Dashboard</div>
+              <div className="header-title">Performance Dashboard · {SEMESTER_LABEL}</div>
               {isManagerView ? (
                 <div className="header-sub">
                   {activeView === "overview" ? primaryOverviewLabel : activeView === "overview2" ? secondaryOverviewLabel : activeView === "admin" ? "Admin Panel" : (teacherProfiles[selTeacher]?.fullName || selTeacher)}
@@ -1558,11 +1707,7 @@ function Dashboard({ user, accessProfile }) {
               )}
             </div>
           </div>
-          <button className="logout-btn" onClick={() => signOut(auth)} title="Logout">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/>
-            </svg>
-          </button>
+          <UserAvatar user={user} accessProfile={accessProfile} />
         </div>
         {isManagerView && (
           <div className={`header-v3-bottom${activeView === "teacher" ? " visible" : ""}`}>
@@ -1586,8 +1731,9 @@ function Dashboard({ user, accessProfile }) {
         <div className="dashboard-shell">
 
           {/* Sidebar */}
-          <div className="sidebar">
-            <div className="sidebar-head">
+          <div className={`sidebar ${sidebarCollapsed ? "collapsed" : ""}`}>
+            <div className="sidebar-inner">
+              <div className="sidebar-head">
               <button
                 className={`sidebar-ov-btn ${activeView === "overview" ? "active" : ""}`}
                 onClick={() => setActiveView("overview")}
@@ -1668,7 +1814,20 @@ function Dashboard({ user, accessProfile }) {
                 )
               })}
             </div>
+            </div>
           </div>
+
+          <button
+            className={`sidebar-toggle-btn ${sidebarCollapsed ? "collapsed" : ""}`}
+            onClick={() => setSidebarCollapsed((p) => !p)}
+            title={sidebarCollapsed ? "Open sidebar" : "Close sidebar"}
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              {sidebarCollapsed
+                ? <polyline points="9 18 15 12 9 6" />
+                : <polyline points="15 18 9 12 15 6" />}
+            </svg>
+          </button>
 
           {/* Main content */}
           <div className="sidebar-main">
@@ -1699,24 +1858,32 @@ function Dashboard({ user, accessProfile }) {
           <div className="util-divider" />
 
           <div className="util-item" style={{ marginRight: 18, marginLeft: 18 }}>
-            <div className="util-item-label">GJ utilization</div>
+            <div className="util-item-label">GJ Utilization</div>
             <div className="util-item-value">{currentUtilization.teacher_utilization_percentage}%</div>
           </div>
 
           <div className="util-divider" />
 
           <div className="util-item" style={{ marginRight: 18, marginLeft: 18 }}>
-            <div className="util-item-label">Hours in class (as GJ)</div>
-            <div className="util-item-value">
-              {(currentUtilization.hours_as_teacher_in_mandatory_class ?? 0) + (currentUtilization.hours_as_teacher_in_non_mandatory_class ?? 0)} hrs
-            </div>
+            <div className="util-item-label">Scheduled as GJ</div>
+            <div className="util-item-value">{currentUtilization.hours_as_teacher_in_mandatory_class ?? 0} hrs</div>
           </div>
+
+          {(currentUtilization.hours_as_teacher_in_non_mandatory_class ?? 0) > 0 && (
+            <>
+              <div className="util-divider" />
+              <div className="util-item" style={{ marginRight: 18, marginLeft: 18 }}>
+                <div className="util-item-label">Scheduled as GJ Others</div>
+                <div className="util-item-value">{currentUtilization.hours_as_teacher_in_non_mandatory_class} hrs</div>
+              </div>
+            </>
+          )}
 
           {(currentUtilization.hours_as_mentor ?? 0) > 0 && (
             <>
               <div className="util-divider" />
               <div className="util-item" style={{ marginRight: 18, marginLeft: 18 }}>
-                <div className="util-item-label">Hours in class<br />(as mentor)</div>
+                <div className="util-item-label">Scheduled as Mentor</div>
                 <div className="util-item-value">{currentUtilization.hours_as_mentor} hrs</div>
               </div>
             </>
@@ -1749,7 +1916,7 @@ function Dashboard({ user, accessProfile }) {
       )}
       <div style={{ display: "flex", gap: 12, marginBottom: 14 }}>
         <div style={{ flex: 1, background: "#fff", border: "0.5px solid #e2e8f0", borderRadius: 12, padding: "14px 16px", display: "flex", flexDirection: "column", gap: 10 }}>
-          <div style={{ fontSize: 11, color: "#64748b" }}>Slot Performance</div>
+          <div style={{ fontSize: 13, color: "#64748b" }}>Slot Performance</div>
           <div style={{ display: "flex", flexDirection: "row", gap: 14, alignItems: "center" }}>
             <svg width="75" height="75" viewBox="0 0 62 62">
               <circle cx="31" cy="31" r="23" fill="none" stroke="#e2e8f0" strokeWidth="7" />
@@ -1773,7 +1940,7 @@ function Dashboard({ user, accessProfile }) {
           </div>
         </div>
         <div style={{ flex: 1, background: "#fff", border: "0.5px solid #e2e8f0", borderRadius: 12, padding: "14px 16px", display: "flex", flexDirection: "column", gap: 10 }}>
-          <div style={{ fontSize: 11, color: "#64748b" }}>Observation Result</div>
+          <div style={{ fontSize: 13, color: "#64748b" }}>Observation Result</div>
           <div style={{ display: "flex", flexDirection: "row", gap: 14, alignItems: "center" }}>
             <svg width="75" height="75" viewBox="0 0 62 62">
               <circle cx="31" cy="31" r="23" fill="none" stroke="#e2e8f0" strokeWidth="7" />
@@ -1801,59 +1968,39 @@ function Dashboard({ user, accessProfile }) {
           const onTimeCount = observationAssignment.filter(a => (a.status || "").toLowerCase() === "on time").length
           const lateCount = observationAssignment.filter(a => (a.status || "").toLowerCase() === "late").length
           const notYetCount = total - onTimeCount - lateCount
-          const circ = 144.51
-          const onTimeLen = total > 0 ? (onTimeCount / total) * circ : 0
-          const lateLen = total > 0 ? (lateCount / total) * circ : 0
-          const notYetLen = total > 0 ? (notYetCount / total) * circ : 0
           const pctOnTime = total > 0 ? Math.round(onTimeCount / total * 100) : 0
-          const teacherLevel = teacherProfiles[selTeacher]?.level ?? null
-          const emptyText = teacherLevel !== null && teacherLevel <= 2 ? "No assignment" : "No assignment yet"
           return (
             <div
               style={{ flex: 1, background: "#fff", border: "0.5px solid #e2e8f0", borderRadius: 12, padding: "14px 16px", display: "flex", flexDirection: "column", gap: 10, cursor: total > 0 ? "pointer" : "default" }}
               onClick={total > 0 ? () => setActiveObsAssignmentModal(true) : undefined}
             >
-              <div style={{ fontSize: 11, color: "#64748b" }}>Observation Assignment</div>
+              <div style={{ fontSize: 13, color: "#64748b" }}>Observation Assignment</div>
               {total === 0 ? (
-                <div style={{ fontSize: 13, color: "#94a3b8", padding: "12px 0" }}>{emptyText}</div>
+                <div style={{ fontSize: 13, color: "#94a3b8", padding: "12px 0", textAlign: "center" }}>No assignments yet</div>
               ) : (
                 <>
-                  <div style={{ display: "flex", flexDirection: "row", gap: 14, alignItems: "center" }}>
-                    <svg width="75" height="75" viewBox="0 0 62 62">
-                      <circle cx="31" cy="31" r="23" fill="none" stroke="#e2e8f0" strokeWidth="7" />
-                      <circle cx="31" cy="31" r="23" fill="none" stroke="#639922" strokeWidth="7"
-                        strokeDasharray={`${onTimeLen.toFixed(2)} ${(circ - onTimeLen).toFixed(2)}`}
-                        strokeLinecap="butt" transform="rotate(-90 31 31)" />
-                      <circle cx="31" cy="31" r="23" fill="none" stroke="#E24B4A" strokeWidth="7"
-                        strokeDasharray={`${lateLen.toFixed(2)} ${(circ - lateLen).toFixed(2)}`}
-                        strokeLinecap="butt" transform="rotate(-90 31 31)"
-                        strokeDashoffset={-onTimeLen} />
-                      <circle cx="31" cy="31" r="23" fill="none" stroke="#B4B2A9" strokeWidth="7"
-                        strokeDasharray={`${notYetLen.toFixed(2)} ${(circ - notYetLen).toFixed(2)}`}
-                        strokeLinecap="butt" transform="rotate(-90 31 31)"
-                        strokeDashoffset={-(onTimeLen + lateLen)} />
-                      <text x="31" y="30" textAnchor="middle" fontSize="12" fontWeight="500" fill="#1e293b">{pctOnTime}%</text>
-                      <text x="31" y="41" textAnchor="middle" fontSize="7.5" fill="#94a3b8">on time</text>
-                    </svg>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 5, fontSize: 11, minWidth: 80 }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center" }}>
-                        <span style={{ display: "flex", alignItems: "center", gap: 4 }}><span style={{ width: 8, height: 8, borderRadius: "50%", background: "#639922", display: "inline-block", flexShrink: 0 }} />On Time</span>
-                        <span style={{ fontWeight: 500 }}>{onTimeCount}</span>
-                      </div>
-                      <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center" }}>
-                        <span style={{ display: "flex", alignItems: "center", gap: 4 }}><span style={{ width: 8, height: 8, borderRadius: "50%", background: "#E24B4A", display: "inline-block", flexShrink: 0 }} />Late</span>
-                        <span style={{ fontWeight: 500 }}>{lateCount}</span>
-                      </div>
-                      <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center" }}>
-                        <span style={{ display: "flex", alignItems: "center", gap: 4 }}><span style={{ width: 8, height: 8, borderRadius: "50%", background: "#B4B2A9", display: "inline-block", flexShrink: 0 }} />Not Yet</span>
-                        <span style={{ fontWeight: 500 }}>{notYetCount}</span>
-                      </div>
-                    </div>
+                  <div>
+                    <div style={{ fontSize: 28, fontWeight: 500, color: "#1e293b", lineHeight: 1 }}>{pctOnTime}%</div>
+                    <div style={{ fontSize: 13, color: "#94a3b8", marginTop: 4 }}>on time out of {total} assignments</div>
                   </div>
-                  <div style={{ borderTop: "0.5px solid #f1f5f9", paddingTop: 8, fontSize: 11, color: "#64748b" }}>
-                    {total} assignments total
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginTop: -4 }}>
+                    <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: "#27500A" }}>
+                      <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#639922", display: "inline-block", flexShrink: 0 }} />
+                      {onTimeCount} on time
+                    </span>
+                    <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: "#791F1F" }}>
+                      <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#E24B4A", display: "inline-block", flexShrink: 0 }} />
+                      {lateCount} late
+                    </span>
+                    <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: "#5F5E5A" }}>
+                      <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#B4B2A9", display: "inline-block", flexShrink: 0 }} />
+                      {notYetCount} not yet
+                    </span>
                   </div>
-                  <div className="click-hint">Click for details</div>
+                  <div className="click-hint" style={{ margin: 0, marginTop: -5, fontSize: 11, display: "flex", alignItems: "center", gap: 4 }}>
+                    <i className="ti ti-list" aria-hidden="true" style={{ fontSize: 12 }} />
+                    Click to view details
+                  </div>
                 </>
               )}
             </div>
@@ -1868,7 +2015,7 @@ function Dashboard({ user, accessProfile }) {
             }}
             onClick={() => setActivePunctualityModal(true)}
           >
-            <div style={{ fontSize: 11, color: "#64748b" }}>Punctuality</div>
+            <div style={{ fontSize: 13, color: "#64748b" }}>Punctuality</div>
             <div style={{ display: "flex", gap: 20 }}>
               <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                 <div style={{ fontSize: 11, color: "#64748b", display: "flex", alignItems: "center", gap: 4 }}>
@@ -1894,21 +2041,29 @@ function Dashboard({ user, accessProfile }) {
                 </div>
               </div>
             </div>
-            <div style={{ borderTop: "0.5px solid #f1f5f9", paddingTop: 8, fontSize: 11, color: "#64748b", display: "flex", justifyContent: "space-between" }}>
-              <span>Current semester</span>
-              <span className="click-hint">Click for details</span>
+            <div style={{ borderTop: "0.5px solid #f1f5f9", paddingTop: 0, fontSize: 11, color: "#64748b", display: "flex", flexDirection: "column", gap: 4 }}>
+              <span>Students can join 5 min early</span>
+              <div className="click-hint" style={{ margin: 0, marginTop: -7, fontSize: 11, display: "flex", alignItems: "center", gap: 4 }}>
+                <i className="ti ti-list" aria-hidden="true" style={{ fontSize: 12 }} />
+                Click to view details
+              </div>
             </div>
           </div>
         )}
       </div>
       <div className="two-col">
         <div className="left-col">
-          <div className="section">
+          <div className="section slot-box">
             <div className="sec-head">
-              <span className="sec-title">Stickiness index per slot</span>
-              <span className="week-pill">Weekly</span>
+              <span className="sec-title">Stickiness Index per Slot</span>
+              <span className="click-hint" style={{ margin: 0, fontSize: 11, display: "flex", alignItems: "center", gap: 4 }}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                  <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+                </svg>
+                Click a slot to view the trend
+              </span>
             </div>
-            <div className="obs-scroll">
+            <div className="obs-scroll" style={classes.length >= 5 ? { height: 284.2 } : undefined}>
               <table>
                 <thead><tr><th>Slot</th><th>Stickiness</th><th>Deviation</th><th>Status</th></tr></thead>
                 <tbody>
@@ -1950,78 +2105,57 @@ function Dashboard({ user, accessProfile }) {
             </div>
           </div>
 
-          <div className="section">
-            <div className="sec-head">
-              <span className="sec-title">{selClass ? `Stickiness trend — ${selClass}` : "Stickiness trend"}</span>
-              {selClass && <ChartLegend />}
-            </div>
-            {!selClass ? (
-              <div className="empty-state">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                  <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
-                </svg>
-                <span>Click a class row to view trend</span>
+          {trendMounted && (
+            <div className={`section trend-box${trendClosing ? " trend-box-closing" : ""}`} ref={trendSectionRef} onAnimationEnd={handleTrendOpenAnimationEnd}>
+              <div className="sec-head">
+                <span className="sec-title">Stickiness trend — {trendDisplayClass}</span>
+                <ChartLegend />
               </div>
-            ) : (
               <ResponsiveContainer width="100%" height={200}>
                 <LineChart data={chartData} margin={{ top: 8, right: 16, left: -10, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.06)" />
                   <XAxis dataKey="week" tick={{ fontSize: 11, fill: "#888" }} />
                   <YAxis domain={[40, 100]} tick={{ fontSize: 11, fill: "#888" }} />
-                  <Tooltip
-                    contentStyle={{ fontSize: 12, borderRadius: 8, border: "0.5px solid #e5e7eb" }}
-                    formatter={(v, n) => [v, n === "dynAvg" ? "Dynamic Average Stickiness" : "Stickiness"]}
-                  />
+                  <Tooltip content={<StickinessTooltip />} />
                   <Line type="monotone" dataKey="stickiness" stroke="#2563eb" strokeWidth={2} dot={{ r: 4, fill: "#2563eb" }} name="stickiness" />
                   <Line type="monotone" dataKey="dynAvg" stroke="#d97706" strokeWidth={1.5} strokeDasharray="5 4" dot={false} name="dynAvg" />
                 </LineChart>
               </ResponsiveContainer>
-            )}
-          </div>
+            </div>
+          )}
 
           {/* Live Class Issues */}
           <div className="section">
-            <div className="sec-head">
-              <span className="sec-title">Live class issues</span>
-              {liveClassIssues.length > 0 && (
+            <div className="sec-head" style={liveClassIssues.length === 0 ? { marginBottom: 0 } : undefined}>
+              <span className="sec-title">Live Class Issues</span>
+              {liveClassIssues.length > 0 ? (
                 <span style={{
                   fontSize: 11, fontWeight: 500, padding: "2px 8px",
                   borderRadius: 20, background: "#fcebeb", color: "#a32d2d"
                 }}>
                   {liveClassIssues.length} issues
                 </span>
+              ) : (
+                <span style={{ fontSize: 12, color: "#94a3b8" }}>No issues recorded</span>
               )}
             </div>
 
-            {liveClassIssues.length === 0 ? (
-              <div className="empty-state">
-                <span>No issues recorded</span>
-              </div>
-            ) : (
-              <div style={{
-                display: "flex", flexDirection: "column", gap: 0,
-                overflowY: "auto", maxHeight: 220,
-                border: "0.5px solid #e2e8f0", borderRadius: 8
-              }}>
+            {liveClassIssues.length > 0 && (
+              <div className="obs-scroll">
                 {liveClassIssues.map((issue, i) => (
-                  <div key={i} style={{
-                    display: "flex", flexDirection: "column", gap: 2,
-                    padding: "8px 10px",
-                    borderBottom: i < liveClassIssues.length - 1 ? "0.5px solid #e2e8f0" : "none"
-                  }}>
-                    <div style={{ fontSize: 11, fontWeight: 500, color: "#1e293b" }}>
-                      {issue.problem}
-                    </div>
-                    <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                      <span style={{ fontSize: 10, color: "#64748b" }}>{issue.slot}</span>
-                      <span style={{ fontSize: 9, color: "#d1d5db" }}>·</span>
-                      <span style={{ fontSize: 10, color: "#94a3b8" }}>{issue.date}</span>
-                    </div>
-                    {issue.reason && issue.reason !== "—" && (
-                      <div style={{ fontSize: 10, color: "#94a3b8", fontStyle: "italic" }}>
-                        {issue.reason}
+                  <div key={i} className="obs-item">
+                    <div className="obs-top">
+                      <div className="obs-left">
+                        <div className="obs-date">{formatDate(issue.date)}</div>
+                        <div>
+                          <div className="obs-class">{issue.problem}</div>
+                          <div className="obs-observer">{issue.slot}</div>
+                          {issue.reason && issue.reason !== "—" && (
+                            <div className="obs-observer" style={{ fontStyle: "italic" }}>{issue.reason}</div>
+                          )}
+                        </div>
                       </div>
-                    )}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -2031,7 +2165,7 @@ function Dashboard({ user, accessProfile }) {
           {canSeeEventAttendance(selTeacher) && (
             <div className="section" style={{ marginBottom: 14 }}>
               <div className="sec-head">
-                <span className="sec-title">Event attendance</span>
+                <span className="sec-title">Event Attendance</span>
                 <div style={{ display: "flex", gap: 8 }}>
                   {eventAttendance.length > 0 && (
                     <>
@@ -2081,10 +2215,14 @@ function Dashboard({ user, accessProfile }) {
         <div className="right-col">
           <div className="section" style={{ marginBottom: 14 }}>
             <div className="sec-head">
-              <span className="sec-title">Class observation history</span>
-              <span className="obs-pill">Monthly</span>
+              <span className="sec-title">Class Observation History</span>
+              {obsHistory.length > 0 && (
+                <span className="click-hint" style={{ margin: 0, fontSize: 11, display: "flex", alignItems: "center", gap: 4 }}>
+                  <i className="ti ti-list" aria-hidden="true" style={{ fontSize: 12 }} />
+                  Click to view details
+                </span>
+              )}
             </div>
-            {obsHistory.length > 0 && <div className="click-hint" style={{ marginTop: -4, marginBottom: 8 }}>Click for details</div>}
             {obsHistory.length === 0 ? (
               <div className="empty-state">
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -2117,20 +2255,24 @@ function Dashboard({ user, accessProfile }) {
           </div>
           
           <div className="section" style={{ marginBottom: 14 }}>
-            <div className="sec-head">
-              <span className="sec-title">Coaching history</span>
-              <span className="coaching-pill">All sessions</span>
+            <div className="sec-head" style={coachingHistory.length === 0 ? { marginBottom: 0 } : undefined}>
+              <span className="sec-title">Coaching History</span>
+              {coachingHistory.length > 0 ? (
+                <span className="click-hint" style={{ margin: 0, fontSize: 11, display: "flex", alignItems: "center", gap: 4 }}>
+                  <i className="ti ti-list" aria-hidden="true" style={{ fontSize: 12 }} />
+                  Click to view details
+                </span>
+              ) : (
+                <span style={{ fontSize: 12, color: "#94a3b8", display: "flex", alignItems: "center", gap: 4 }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                    <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/>
+                    <path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/>
+                  </svg>
+                  No coaching data yet
+                </span>
+              )}
             </div>
-            {coachingHistory.length > 0 && <div className="click-hint" style={{ marginTop: -4, marginBottom: 8 }}>Click for details</div>}
-            {coachingHistory.length === 0 ? (
-              <div className="empty-state">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                  <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/>
-                  <path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/>
-                </svg>
-                <span>No coaching data yet</span>
-              </div>
-            ) : (
+            {coachingHistory.length > 0 && (
               <div className="obs-scroll">
                 {coachingHistory.map((c, i) => (
                   <div key={i} className="obs-item" onClick={() => setActiveCoaching(c)} style={{ cursor: "pointer" }}>
@@ -2155,47 +2297,55 @@ function Dashboard({ user, accessProfile }) {
 
           <div className="section" style={{ marginBottom: 14 }}>
             <div className="sec-head">
-              <span className="sec-title">Class attendance</span>
+              <span className="sec-title">Class Attendance</span>
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
               <div className="card" style={{ cursor: "pointer" }} onClick={() => setActiveKDModal(true)}>
                 <div className="card-label">Missed Class</div>
                 <div className={`card-value ${ditinggal.length > 0 ? "red" : "green"}`}>{ditinggal.length}</div>
                 <div className="card-sub">meetings missed</div>
-                <div className="click-hint">Click for details</div>
+                <div className="click-hint" style={{ margin: 0, fontSize: 11, display: "flex", alignItems: "center", gap: 4 }}>
+                  <i className="ti ti-list" aria-hidden="true" style={{ fontSize: 12 }} />
+                  Click to view details
+                </div>
               </div>
               <div className="card" style={{ cursor: "pointer" }} onClick={() => setActiveKPModal(true)}>
                 <div className="card-label">Piket Help</div>
                 <div className="card-value green">{piket.length}</div>
                 <div className="card-sub">classes helped</div>
-                <div className="click-hint">Click for details</div>
+                <div className="click-hint" style={{ margin: 0, fontSize: 11, display: "flex", alignItems: "center", gap: 4 }}>
+                  <i className="ti ti-list" aria-hidden="true" style={{ fontSize: 12 }} />
+                  Click to view details
+                </div>
               </div>
             </div>
           </div>
 
           <div className="section">
             <div className="sec-head">
-              <span className="sec-title">Leave per class</span>
+              <span className="sec-title">Leave per Class</span>
               <span className="cuti-pill">SMT 2 2025/2026</span>
             </div>
             {allClassNames.length === 0 ? (
               <div className="empty-state"><span>No leave data yet</span></div>
             ) : (
               <>
-                <table>
-                  <thead><tr><th>Class</th><th>Meetings missed</th></tr></thead>
-                  <tbody>
-                    {allClassNames.map((name) => {
-                      const dates = Array.isArray(cutiKelas[name]) ? cutiKelas[name] : []
-                      return (
-                        <tr key={name}>
-                          <td>{name}</td>
-                          <td><CutiBar count={dates.length} dates={dates} maks={BATAS_MAKS} /></td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
+                <div className="obs-scroll">
+                  <table>
+                    <thead><tr><th>Class</th><th>Meetings missed</th></tr></thead>
+                    <tbody>
+                      {allClassNames.map((name) => {
+                        const dates = Array.isArray(cutiKelas[name]) ? cutiKelas[name] : []
+                        return (
+                          <tr key={name}>
+                            <td>{name}</td>
+                            <td><CutiBar count={dates.length} dates={dates} maks={BATAS_MAKS} /></td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
                 <div className="cuti-note">Max limit: {BATAS_MAKS} meetings/class per semester</div>
               </>
             )}
@@ -2216,24 +2366,32 @@ function Dashboard({ user, accessProfile }) {
               <div className="util-divider" />
 
               <div className="util-item" style={{ marginRight: 18, marginLeft: 18 }}>
-                <div className="util-item-label">Teacher utilization</div>
+                <div className="util-item-label">GJ Utilization</div>
                 <div className="util-item-value">{currentUtilization.teacher_utilization_percentage}%</div>
               </div>
 
               <div className="util-divider" />
 
               <div className="util-item" style={{ marginRight: 18, marginLeft: 18 }}>
-                <div className="util-item-label">Hours in class<br />(as GJ)</div>
-                <div className="util-item-value">
-                  {(currentUtilization.hours_as_teacher_in_mandatory_class ?? 0) + (currentUtilization.hours_as_teacher_in_non_mandatory_class ?? 0)} hrs
-                </div>
+                <div className="util-item-label">Scheduled as GJ</div>
+                <div className="util-item-value">{currentUtilization.hours_as_teacher_in_mandatory_class ?? 0} hrs</div>
               </div>
+
+              {(currentUtilization.hours_as_teacher_in_non_mandatory_class ?? 0) > 0 && (
+                <>
+                  <div className="util-divider" />
+                  <div className="util-item" style={{ marginRight: 18, marginLeft: 18 }}>
+                    <div className="util-item-label">Scheduled as GJ Others</div>
+                    <div className="util-item-value">{currentUtilization.hours_as_teacher_in_non_mandatory_class} hrs</div>
+                  </div>
+                </>
+              )}
 
               {(currentUtilization.hours_as_mentor ?? 0) > 0 && (
                 <>
                   <div className="util-divider" />
                   <div className="util-item" style={{ marginRight: 18, marginLeft: 18 }}>
-                    <div className="util-item-label">Hours in class<br />(as mentor)</div>
+                    <div className="util-item-label">Scheduled as Mentor</div>
                     <div className="util-item-value">{currentUtilization.hours_as_mentor} hrs</div>
                   </div>
                 </>
@@ -2266,7 +2424,7 @@ function Dashboard({ user, accessProfile }) {
           )}
           <div style={{ display: "flex", gap: 12, marginBottom: 14 }}>
             <div style={{ flex: 1, background: "#fff", border: "0.5px solid #e2e8f0", borderRadius: 12, padding: "14px 16px", display: "flex", flexDirection: "column", gap: 10 }}>
-              <div style={{ fontSize: 11, color: "#64748b" }}>Slot Performance</div>
+              <div style={{ fontSize: 13, color: "#64748b" }}>Slot Performance</div>
               <div style={{ display: "flex", flexDirection: "row", gap: 14, alignItems: "center" }}>
                 <svg width="75" height="75" viewBox="0 0 62 62">
                   <circle cx="31" cy="31" r="23" fill="none" stroke="#e2e8f0" strokeWidth="7" />
@@ -2290,7 +2448,7 @@ function Dashboard({ user, accessProfile }) {
               </div>
             </div>
             <div style={{ flex: 1, background: "#fff", border: "0.5px solid #e2e8f0", borderRadius: 12, padding: "14px 16px", display: "flex", flexDirection: "column", gap: 10 }}>
-              <div style={{ fontSize: 11, color: "#64748b" }}>Observation Result</div>
+              <div style={{ fontSize: 13, color: "#64748b" }}>Observation Result</div>
               <div style={{ display: "flex", flexDirection: "row", gap: 14, alignItems: "center" }}>
                 <svg width="75" height="75" viewBox="0 0 62 62">
                   <circle cx="31" cy="31" r="23" fill="none" stroke="#e2e8f0" strokeWidth="7" />
@@ -2303,7 +2461,7 @@ function Dashboard({ user, accessProfile }) {
                 </svg>
                 <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
                   <div style={{ fontSize: 30, fontWeight: 500, color: "#1e293b", lineHeight: 1 }}>{obsPassedCount}</div>
-                  <div style={{ fontSize: 15, color: "#94a3b8", lineHeight: 1.4 }}>observation passed</div>
+                  <div style={{ fontSize: 13, color: "#94a3b8", lineHeight: 1.4 }}>observation passed</div>
                 </div>
               </div>
               <div style={{ borderTop: "0.5px solid #f1f5f9", paddingTop: 8, fontSize: 11, color: "#64748b" }}>
@@ -2318,59 +2476,39 @@ function Dashboard({ user, accessProfile }) {
               const onTimeCount = observationAssignment.filter(a => (a.status || "").toLowerCase() === "on time").length
               const lateCount = observationAssignment.filter(a => (a.status || "").toLowerCase() === "late").length
               const notYetCount = total - onTimeCount - lateCount
-              const circ = 144.51
-              const onTimeLen = total > 0 ? (onTimeCount / total) * circ : 0
-              const lateLen = total > 0 ? (lateCount / total) * circ : 0
-              const notYetLen = total > 0 ? (notYetCount / total) * circ : 0
               const pctOnTime = total > 0 ? Math.round(onTimeCount / total * 100) : 0
-              const teacherLevel = teacherProfiles[selTeacher]?.level ?? null
-              const emptyText = teacherLevel !== null && teacherLevel <= 2 ? "No assignment" : "No assignment yet"
               return (
                 <div
                   style={{ flex: 1, background: "#fff", border: "0.5px solid #e2e8f0", borderRadius: 12, padding: "14px 16px", display: "flex", flexDirection: "column", gap: 10, cursor: total > 0 ? "pointer" : "default" }}
                   onClick={total > 0 ? () => setActiveObsAssignmentModal(true) : undefined}
                 >
-                  <div style={{ fontSize: 11, color: "#64748b" }}>Observation Assignment</div>
+                  <div style={{ fontSize: 13, color: "#64748b" }}>Observation Assignment</div>
                   {total === 0 ? (
-                    <div style={{ fontSize: 13, color: "#94a3b8", padding: "12px 0" }}>{emptyText}</div>
+                    <div style={{ fontSize: 13, color: "#94a3b8", padding: "12px 0", textAlign: "center" }}>No assignments yet</div>
                   ) : (
                     <>
-                      <div style={{ display: "flex", flexDirection: "row", gap: 14, alignItems: "center" }}>
-                        <svg width="75" height="75" viewBox="0 0 62 62">
-                          <circle cx="31" cy="31" r="23" fill="none" stroke="#e2e8f0" strokeWidth="7" />
-                          <circle cx="31" cy="31" r="23" fill="none" stroke="#639922" strokeWidth="7"
-                            strokeDasharray={`${onTimeLen.toFixed(2)} ${(circ - onTimeLen).toFixed(2)}`}
-                            strokeLinecap="butt" transform="rotate(-90 31 31)" />
-                          <circle cx="31" cy="31" r="23" fill="none" stroke="#E24B4A" strokeWidth="7"
-                            strokeDasharray={`${lateLen.toFixed(2)} ${(circ - lateLen).toFixed(2)}`}
-                            strokeLinecap="butt" transform="rotate(-90 31 31)"
-                            strokeDashoffset={-onTimeLen} />
-                          <circle cx="31" cy="31" r="23" fill="none" stroke="#B4B2A9" strokeWidth="7"
-                            strokeDasharray={`${notYetLen.toFixed(2)} ${(circ - notYetLen).toFixed(2)}`}
-                            strokeLinecap="butt" transform="rotate(-90 31 31)"
-                            strokeDashoffset={-(onTimeLen + lateLen)} />
-                          <text x="31" y="30" textAnchor="middle" fontSize="12" fontWeight="500" fill="#1e293b">{pctOnTime}%</text>
-                          <text x="31" y="41" textAnchor="middle" fontSize="7.5" fill="#94a3b8">on time</text>
-                        </svg>
-                        <div style={{ display: "flex", flexDirection: "column", gap: 5, fontSize: 11, minWidth: 80 }}>
-                          <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center" }}>
-                            <span style={{ display: "flex", alignItems: "center", gap: 4 }}><span style={{ width: 8, height: 8, borderRadius: "50%", background: "#639922", display: "inline-block", flexShrink: 0 }} />On Time</span>
-                            <span style={{ fontWeight: 500 }}>{onTimeCount}</span>
-                          </div>
-                          <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center" }}>
-                            <span style={{ display: "flex", alignItems: "center", gap: 4 }}><span style={{ width: 8, height: 8, borderRadius: "50%", background: "#E24B4A", display: "inline-block", flexShrink: 0 }} />Late</span>
-                            <span style={{ fontWeight: 500 }}>{lateCount}</span>
-                          </div>
-                          <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center" }}>
-                            <span style={{ display: "flex", alignItems: "center", gap: 4 }}><span style={{ width: 8, height: 8, borderRadius: "50%", background: "#B4B2A9", display: "inline-block", flexShrink: 0 }} />Not Yet</span>
-                            <span style={{ fontWeight: 500 }}>{notYetCount}</span>
-                          </div>
-                        </div>
+                      <div>
+                        <div style={{ fontSize: 28, fontWeight: 500, color: "#1e293b", lineHeight: 1 }}>{pctOnTime}%</div>
+                        <div style={{ fontSize: 13, color: "#94a3b8", marginTop: 4 }}>on time out of {total} assignments</div>
                       </div>
-                      <div style={{ borderTop: "0.5px solid #f1f5f9", paddingTop: 8, fontSize: 11, color: "#64748b" }}>
-                        {total} assignments total
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginTop: -4 }}>
+                        <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: "#27500A" }}>
+                          <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#639922", display: "inline-block", flexShrink: 0 }} />
+                          {onTimeCount} on time
+                        </span>
+                        <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: "#791F1F" }}>
+                          <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#E24B4A", display: "inline-block", flexShrink: 0 }} />
+                          {lateCount} late
+                        </span>
+                        <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: "#5F5E5A" }}>
+                          <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#B4B2A9", display: "inline-block", flexShrink: 0 }} />
+                          {notYetCount} not yet
+                        </span>
                       </div>
-                      <div className="click-hint">Click for details</div>
+                      <div className="click-hint" style={{ margin: 0, marginTop: -5, fontSize: 11, display: "flex", alignItems: "center", gap: 4 }}>
+                        <i className="ti ti-list" aria-hidden="true" style={{ fontSize: 12 }} />
+                        Click to view details
+                      </div>
                     </>
                   )}
                 </div>
@@ -2385,7 +2523,7 @@ function Dashboard({ user, accessProfile }) {
                 }}
                 onClick={() => setActivePunctualityModal(true)}
               >
-                <div style={{ fontSize: 11, color: "#64748b" }}>Punctuality</div>
+                <div style={{ fontSize: 13, color: "#64748b" }}>Punctuality</div>
                 <div style={{ display: "flex", gap: 20 }}>
                   <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                     <div style={{ fontSize: 11, color: "#64748b", display: "flex", alignItems: "center", gap: 4 }}>
@@ -2411,85 +2549,176 @@ function Dashboard({ user, accessProfile }) {
                     </div>
                   </div>
                 </div>
-                <div style={{ borderTop: "0.5px solid #f1f5f9", paddingTop: 8, fontSize: 11, color: "#64748b", display: "flex", justifyContent: "space-between" }}>
-                  <span>Current semester</span>
-                  <span className="click-hint">Click for details</span>
+                <div style={{ borderTop: "0.5px solid #f1f5f9", paddingTop: 8, fontSize: 11, color: "#64748b", display: "flex", flexDirection: "column", gap: 4 }}>
+                  <span>Students can join 5 min early</span>
+                  <div className="click-hint" style={{ margin: 0, marginTop: -7, fontSize: 11, display: "flex", alignItems: "center", gap: 4 }}>
+                    <i className="ti ti-list" aria-hidden="true" style={{ fontSize: 12 }} />
+                    Click to view details
+                  </div>
                 </div>
               </div>
             )}
           </div>
           <div className="two-col">
             <div className="left-col">
-              <div className="section">
+              <div className="section slot-box">
                 <div className="sec-head">
-                  <span className="sec-title">Stickiness index per slot</span>
-                  <span className="week-pill">Weekly</span>
-                </div>
-                <table>
-                  <thead><tr><th>Class</th><th>Stickiness</th><th>Deviation</th><th>Status</th></tr></thead>
-                  <tbody>
-                    {classes.map((c) => {
-                      const pct       = Math.min(100, Math.max(-100, c.latest.stickiness))
-                      const fillWidth = (Math.abs(pct) / 100) * 50
-                      const fillLeft  = pct >= 0 ? 50 : 50 - fillWidth
-                      const devStr    = c.latest.deviation >= 0 ? `+${c.latest.deviation}` : `${c.latest.deviation}`
-                      const devColor  = c.latest.deviation >= 0 ? "#15803d" : "#dc2626"
-                      return (
-                        <tr key={c.name} className={`row ${selClass === c.name ? "selected" : ""}`} onClick={() => handleClass(c.name)}>
-                          <td>{c.name}</td>
-                          <td>
-                            <div className="bar-wrap">
-                              <div className="bar" style={{ position: "relative" }}>
-                                <div style={{ position:"absolute", left:"50%", top:0, width:"1px", height:"100%", background:"rgba(0,0,0,0.15)" }} />
-                                <div className="bar-fill" style={{ position:"absolute", left:`${fillLeft}%`, width:`${fillWidth}%`, height:"100%", background: barColor(c.latest.status) }} />
-                              </div>
-                              {c.latest.stickiness}
-                            </div>
-                          </td>
-                          <td style={{ color: devColor }}>{devStr}</td>
-                          <td>{statusBadge(c.latest.status)}</td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
-              </div>
-              <div className="section">
-                <div className="sec-head">
-                  <span className="sec-title">{selClass ? `Stickiness trend — ${selClass}` : "Stickiness trend"}</span>
-                  {selClass && <ChartLegend />}
-                </div>
-                {!selClass ? (
-                  <div className="empty-state">
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                  <span className="sec-title">Stickiness Index per Slot</span>
+                  <span className="click-hint" style={{ margin: 0, fontSize: 11, display: "flex", alignItems: "center", gap: 4 }}>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
                       <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
                     </svg>
-                    <span>Click a class row to view trend</span>
+                    Click a slot to view the trend
+                  </span>
+                </div>
+                <div className="obs-scroll" style={classes.length >= 5 ? { height: 284.2 } : undefined}>
+                  <table>
+                    <thead><tr><th>Class</th><th>Stickiness</th><th>Deviation</th><th>Status</th></tr></thead>
+                    <tbody>
+                      {classes.map((c) => {
+                        const pct       = Math.min(100, Math.max(-100, c.latest.stickiness))
+                        const fillWidth = (Math.abs(pct) / 100) * 50
+                        const fillLeft  = pct >= 0 ? 50 : 50 - fillWidth
+                        const devStr    = c.latest.deviation >= 0 ? `+${c.latest.deviation}` : `${c.latest.deviation}`
+                        const devColor  = c.latest.deviation >= 0 ? "#15803d" : "#dc2626"
+                        return (
+                          <tr key={c.name} className={`row ${selClass === c.name ? "selected" : ""}`} onClick={() => handleClass(c.name)}>
+                            <td>{c.name}</td>
+                            <td>
+                              <div className="bar-wrap">
+                                <div className="bar" style={{ position: "relative" }}>
+                                  <div style={{ position:"absolute", left:"50%", top:0, width:"1px", height:"100%", background:"rgba(0,0,0,0.15)" }} />
+                                  <div className="bar-fill" style={{ position:"absolute", left:`${fillLeft}%`, width:`${fillWidth}%`, height:"100%", background: barColor(c.latest.status) }} />
+                                </div>
+                                {c.latest.stickiness}
+                              </div>
+                            </td>
+                            <td style={{ color: devColor }}>{devStr}</td>
+                            <td>{statusBadge(c.latest.status)}</td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+              {trendMounted && (
+                <div className={`section trend-box${trendClosing ? " trend-box-closing" : ""}`} ref={trendSectionRef} onAnimationEnd={handleTrendOpenAnimationEnd}>
+                  <div className="sec-head">
+                    <span className="sec-title">Stickiness trend — {trendDisplayClass}</span>
+                    <ChartLegend />
                   </div>
-                ) : (
                   <ResponsiveContainer width="100%" height={200}>
                     <LineChart data={chartData} margin={{ top: 8, right: 16, left: -10, bottom: 0 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.06)" />
                       <XAxis dataKey="week" tick={{ fontSize: 11, fill: "#888" }} />
                       <YAxis domain={[40, 100]} tick={{ fontSize: 11, fill: "#888" }} />
-                      <Tooltip
-                        contentStyle={{ fontSize: 12, borderRadius: 8, border: "0.5px solid #e5e7eb" }}
-                        formatter={(v, n) => [v, n === "dynAvg" ? "Dynamic Average Stickiness" : "Stickiness"]}
-                      />
+                      <Tooltip content={<StickinessTooltip />} />
                       <Line type="monotone" dataKey="stickiness" stroke="#2563eb" strokeWidth={2} dot={{ r: 4, fill: "#2563eb" }} name="stickiness" />
                       <Line type="monotone" dataKey="dynAvg" stroke="#d97706" strokeWidth={1.5} strokeDasharray="5 4" dot={false} name="dynAvg" />
                     </LineChart>
                   </ResponsiveContainer>
+                </div>
+              )}
+
+              {/* Live Class Issues */}
+              <div className="section">
+                <div className="sec-head" style={liveClassIssues.length === 0 ? { marginBottom: 0 } : undefined}>
+                  <span className="sec-title">Live class Issues</span>
+                  {liveClassIssues.length > 0 ? (
+                    <span style={{
+                      fontSize: 11, fontWeight: 500, padding: "2px 8px",
+                      borderRadius: 20, background: "#fcebeb", color: "#a32d2d"
+                    }}>
+                      {liveClassIssues.length} issues
+                    </span>
+                  ) : (
+                    <span style={{ fontSize: 12, color: "#94a3b8" }}>No issues recorded</span>
+                  )}
+                </div>
+
+                {liveClassIssues.length > 0 && (
+                  <div className="obs-scroll">
+                    {liveClassIssues.map((issue, i) => (
+                      <div key={i} className="obs-item">
+                        <div className="obs-top">
+                          <div className="obs-left">
+                            <div className="obs-date">{formatDate(issue.date)}</div>
+                            <div>
+                              <div className="obs-class">{issue.problem}</div>
+                              <div className="obs-observer">{issue.slot}</div>
+                              {issue.reason && issue.reason !== "—" && (
+                                <div className="obs-observer" style={{ fontStyle: "italic" }}>{issue.reason}</div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 )}
               </div>
+
+              {canSeeEventAttendance(selTeacher) && (
+                <div className="section" style={{ marginBottom: 14 }}>
+                  <div className="sec-head">
+                    <span className="sec-title">Event Attendance</span>
+                    <div style={{ display: "flex", gap: 8 }}>
+                      {eventAttendance.length > 0 && (
+                        <>
+                          <span style={{ background: "#dcfce7", color: "#15803d", fontSize: 11, padding: "2px 9px", borderRadius: 20, fontWeight: 500 }}>
+                            {eventAttendance.filter(e => e.attend === "Attend").length} attended
+                          </span>
+                          <span style={{ background: "#fee2e2", color: "#991b1b", fontSize: 11, padding: "2px 9px", borderRadius: 20, fontWeight: 500 }}>
+                            {eventAttendance.filter(e => e.attend === "Absent").length} absent
+                          </span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                  {eventAttendance.length === 0 ? (
+                    <div className="empty-state">
+                      <span>No event data yet</span>
+                    </div>
+                  ) : (
+                    <div>
+                      {eventAttendance.map((e, i) => (
+                        <div key={i} className="obs-item">
+                          <div className="obs-top">
+                            <div className="obs-left">
+                              <div className="obs-date">{formatDate(e.date)}</div>
+                              <div>
+                                <div className="obs-class">{e.eventType}</div>
+                                <div className="obs-observer">{e.event}</div>
+                              </div>
+                            </div>
+                            <span style={{
+                              background: e.attend === "Attend" ? "#dcfce7" : "#fee2e2",
+                              color: e.attend === "Attend" ? "#15803d" : "#991b1b",
+                              fontSize: 10, padding: "2px 8px", borderRadius: 20, fontWeight: 500,
+                              whiteSpace: "nowrap", flexShrink: 0, marginTop: 2
+                            }}>
+                              {e.attend}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
             <div className="right-col">
               <div className="section" style={{ marginBottom: 14 }}>
                 <div className="sec-head">
-                  <span className="sec-title">Class observation history</span>
-                  <span className="obs-pill">Monthly</span>
+                  <span className="sec-title">Class Observation History</span>
+                  {obsHistory.length > 0 && (
+                <span className="click-hint" style={{ margin: 0, fontSize: 11, display: "flex", alignItems: "center", gap: 4 }}>
+                  <i className="ti ti-list" aria-hidden="true" style={{ fontSize: 12 }} />
+                  Click to view details
+                </span>
+              )}
                 </div>
-                {obsHistory.length > 0 && <div className="click-hint" style={{ marginTop: -4, marginBottom: 8 }}>Click for details</div>}
                 {obsHistory.length === 0 ? (
                   <div className="empty-state">
                     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -2521,20 +2750,24 @@ function Dashboard({ user, accessProfile }) {
                 )}
               </div>
               <div className="section" style={{ marginBottom: 14 }}>
-                <div className="sec-head">
-                  <span className="sec-title">Coaching history</span>
-                  <span className="coaching-pill">All sessions</span>
+                <div className="sec-head" style={coachingHistory.length === 0 ? { marginBottom: 0 } : undefined}>
+                  <span className="sec-title">Coaching History</span>
+                  {coachingHistory.length > 0 ? (
+                <span className="click-hint" style={{ margin: 0, fontSize: 11, display: "flex", alignItems: "center", gap: 4 }}>
+                  <i className="ti ti-list" aria-hidden="true" style={{ fontSize: 12 }} />
+                  Click to view details
+                </span>
+              ) : (
+                <span style={{ fontSize: 12, color: "#94a3b8", display: "flex", alignItems: "center", gap: 4 }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                    <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/>
+                    <path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/>
+                  </svg>
+                  No coaching data yet
+                </span>
+              )}
                 </div>
-                {coachingHistory.length > 0 && <div className="click-hint" style={{ marginTop: -4, marginBottom: 8 }}>Click for details</div>}
-                {coachingHistory.length === 0 ? (
-                  <div className="empty-state">
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                      <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/>
-                      <path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/>
-                    </svg>
-                    <span>No coaching data yet</span>
-                  </div>
-                ) : (
+                {coachingHistory.length > 0 && (
                   <div className="obs-scroll">
                     {coachingHistory.map((c, i) => (
                       <div key={i} className="obs-item" onClick={() => setActiveCoaching(c)} style={{ cursor: "pointer" }}>
@@ -2558,46 +2791,54 @@ function Dashboard({ user, accessProfile }) {
               </div>
               <div className="section" style={{ marginBottom: 14 }}>
                 <div className="sec-head">
-                  <span className="sec-title">Class attendance</span>
+                  <span className="sec-title">Class Attendance</span>
                 </div>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                   <div className="card" style={{ cursor: "pointer" }} onClick={() => setActiveKDModal(true)}>
                     <div className="card-label">Missed Class</div>
                     <div className={`card-value ${ditinggal.length > 0 ? "red" : "green"}`}>{ditinggal.length}</div>
                     <div className="card-sub">meetings missed</div>
-                    <div className="click-hint">Click for details</div>
+                    <div className="click-hint" style={{ margin: 0, fontSize: 11, display: "flex", alignItems: "center", gap: 4 }}>
+                      <i className="ti ti-list" aria-hidden="true" style={{ fontSize: 12 }} />
+                      Click to view details
+                    </div>
                   </div>
                   <div className="card" style={{ cursor: "pointer" }} onClick={() => setActiveKPModal(true)}>
                     <div className="card-label">Piket Help</div>
                     <div className="card-value green">{piket.length}</div>
                     <div className="card-sub">classes helped</div>
-                    <div className="click-hint">Click for details</div>
+                    <div className="click-hint" style={{ margin: 0, fontSize: 11, display: "flex", alignItems: "center", gap: 4 }}>
+                      <i className="ti ti-list" aria-hidden="true" style={{ fontSize: 12 }} />
+                      Click to view details
+                    </div>
                   </div>
                 </div>
               </div>
               <div className="section">
                 <div className="sec-head">
-                  <span className="sec-title">Leave per class</span>
+                  <span className="sec-title">Leave per Class</span>
                   <span className="cuti-pill">SMT 2 2025/2026</span>
                 </div>
                 {allClassNames.length === 0 ? (
                   <div className="empty-state"><span>No leave data yet</span></div>
                 ) : (
                   <>
-                    <table>
-                      <thead><tr><th>Class</th><th>Meetings missed</th></tr></thead>
-                      <tbody>
-                        {allClassNames.map((name) => {
-                          const dates = Array.isArray(cutiKelas[name]) ? cutiKelas[name] : []
-                          return (
-                            <tr key={name}>
-                              <td>{name}</td>
-                              <td><CutiBar count={dates.length} dates={dates} maks={BATAS_MAKS} /></td>
-                            </tr>
-                          )
-                        })}
-                      </tbody>
-                    </table>
+                    <div className="obs-scroll">
+                      <table>
+                        <thead><tr><th>Class</th><th>Meetings missed</th></tr></thead>
+                        <tbody>
+                          {allClassNames.map((name) => {
+                            const dates = Array.isArray(cutiKelas[name]) ? cutiKelas[name] : []
+                            return (
+                              <tr key={name}>
+                                <td>{name}</td>
+                                <td><CutiBar count={dates.length} dates={dates} maks={BATAS_MAKS} /></td>
+                              </tr>
+                            )
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
                     <div className="cuti-note">Max limit: {BATAS_MAKS} meetings/class per semester</div>
                   </>
                 )}
@@ -2613,22 +2854,29 @@ export default function App() {
   const [user,          setUser]          = useState(undefined)
   const [accessProfile, setAccessProfile] = useState(undefined)
   const [showGreeting,  setShowGreeting]  = useState(false)
-  const [prevUser,      setPrevUser]      = useState(null)
+  const prevUserRef = useRef(null)
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (u) => {
-      if (u && !prevUser) setShowGreeting(true)
+      if (u && !prevUserRef.current) setShowGreeting(true)
+      prevUserRef.current = u
       setUser(u)
-      setPrevUser(u)
 
       if (u) {
+        setAccessProfile(undefined)
         const isSuperAdmin = SUPER_ADMIN_EMAILS.has(u.email)
+        const isAdmin      = ADMIN_EMAILS.has(u.email)
         try {
-          const { data: profileData } = await supabase
+          const { data: profileData, error: profileError } = await supabase
             .from("v_users_full")
-            .select("nick_name, role, level, main_pod")
+            .select("nick_name, role, level, main_pod, url_photo")
             .eq("email", u.email)
             .single()
+
+          if (!isSuperAdmin && !isAdmin && (profileError || !profileData)) {
+            setAccessProfile(null)
+            return
+          }
 
           let directReportNickNames = new Set()
           if (!isSuperAdmin && (profileData?.level ?? 0) >= 3) {
@@ -2646,9 +2894,10 @@ export default function App() {
             role:                  profileData?.role      ?? null,
             level:                 profileData?.level     ?? null,
             mainPod:               profileData?.main_pod  ?? null,
+            fotoUrl:               profileData?.url_photo ?? null,
             email:                 u.email,
             isSuperAdmin,
-            isGJ:                  !isSuperAdmin && (profileData?.level ?? 0) <= 2,
+            isGJ:                  !isSuperAdmin && !isAdmin && (profileData?.level ?? 0) <= 2,
             directReportNickNames,
           })
         } catch (_) {
@@ -2659,7 +2908,7 @@ export default function App() {
       }
     })
     return unsub
-  }, [prevUser])
+  }, [])
 
   // Loading awal
   if (user === undefined) return <div className="loading">Loading...</div>

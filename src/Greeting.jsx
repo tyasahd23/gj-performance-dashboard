@@ -16,7 +16,7 @@ export default function Greeting({ name, onDone }) {
         <div className="greeting-text">
           Hi, <span className="greeting-name">{name}!</span>
         </div>
-        <div className="greeting-sub">Selamat datang di Guru Juara Performance Dashboard</div>
+        <div className="greeting-sub">Welcome to Guru Juara Performance Dashboard</div>
       </div>
     </div>
   )
