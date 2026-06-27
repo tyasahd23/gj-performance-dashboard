@@ -5,6 +5,8 @@ Semua perubahan penting pada project ini didokumentasikan di file ini.
 Format berdasarkan [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
+
+## [0.3.2] - 2026-06-27
 ### Changed
 - **Badge semester di section "Leave per Class"** (`.cuti-pill`, dua tempat di `App.jsx` — admin/lead view & guru biasa view) — sebelumnya menampilkan label semester statis ("SMT 2 2025/2026") yang tidak memberi konteks apa pun. Diganti jadi hint "Hover bar for dates" supaya user tahu bar di kolom "Meetings missed" (`CutiBar`) bisa di-hover untuk melihat tanggal-tanggal detail meninggalkan kelas (tooltip ini sudah ada sebelumnya, hanya belum ada penanda visual).
 
