@@ -1321,30 +1321,30 @@ function Dashboard({ user, accessProfile }) {
   const isManagerView = accessProfile.isSuperAdmin || (!accessProfile.isGJ && hasTeamToManage)
 
   useEffect(() => {
-    async function loadAll() {
-      const nameMap  = {}
+    function loadAll() {
       const photoMap = {}
 
-      // Load nameMap first — CSV_OBSERVASI, CSV_CUTI, CSV_COACHING depend on it.
-      // Running all parsers in parallel causes a race: if nameMap CSV arrives last,
-      // those processors see an empty map and store full names instead of nicknames,
-      // producing duplicate sidebar entries.
-      await new Promise((resolve) => {
+      // nameMap fetch now starts alongside everything else instead of blocking it —
+      // shaves one full network round-trip off every load. The processors below still
+      // wait on nameMapPromise before running, so the original race (nameMap arriving
+      // last → full names instead of nicknames → duplicate sidebar entries) is still
+      // prevented; only the *fetch* is no longer serialized in front of the rest.
+      const nameMapPromise = new Promise((resolve) => {
         Papa.parse(CSV_NAMEMAP, {
           download: true, header: true, skipEmptyLines: true,
           complete: (r) => {
+            const nameMap = {}
             r.data.forEach(row => {
               const full = (row["full_name"] || "").trim()
               const nick = (row["nick_name"] || "").trim()
               if (full && nick) nameMap[full] = nick
             })
-            resolve()
+            resolve(nameMap)
           },
-          error: resolve,
+          error: () => resolve({}),
         })
       })
 
-      // Remaining CSVs + Supabase run in parallel now that nameMap is ready
       let done = 0
       const tryFinish = () => { done++; if (done === 8) setLoading(false) }
 
@@ -1378,9 +1378,9 @@ function Dashboard({ user, accessProfile }) {
           return supabaseUtil.from("teacher_utilization")
             .select("teacher_name, teacher_utilization_percentage, hours_as_teacher_in_mandatory_class, hours_as_teacher_in_non_mandatory_class, hours_as_mentor, minimum_50_teacher_utilization_status, minimum_75_teacher_utilization_status")
             .eq("semester_id", sem.id)
-            .then(({ data }) => setUtilizationData(
+            .then(({ data }) => nameMapPromise.then((nameMap) => setUtilizationData(
               (data ?? []).map(row => ({ ...row, teacher_name: nameMap[row.teacher_name] || row.teacher_name }))
-            ))
+            )))
         })
         .catch(() => {})
 
@@ -1391,32 +1391,34 @@ function Dashboard({ user, accessProfile }) {
       })
       Papa.parse(CSV_OBSERVASI, {
         download: true, header: true, skipEmptyLines: true,
-        complete: (r) => { setObservasiData(processObservasi(r.data, nameMap)); tryFinish() },
+        complete: (r) => { nameMapPromise.then((nameMap) => { setObservasiData(processObservasi(r.data, nameMap)); tryFinish() }) },
         error: () => tryFinish(),
       })
       Papa.parse(CSV_CUTI, {
         download: true, header: true, skipEmptyLines: true,
         complete: (r) => {
-          setCutiData(processCuti(r.data, nameMap))
-          setKelasDitinggalData(processKelasDitinggal(r.data, nameMap))
-          setMembantuPiketData(processMembantuPiket(r.data, nameMap))
-          tryFinish()
+          nameMapPromise.then((nameMap) => {
+            setCutiData(processCuti(r.data, nameMap))
+            setKelasDitinggalData(processKelasDitinggal(r.data, nameMap))
+            setMembantuPiketData(processMembantuPiket(r.data, nameMap))
+            tryFinish()
+          })
         },
         error: () => tryFinish(),
       })
       Papa.parse(CSV_COACHING, {
         download: true, header: true, skipEmptyLines: true,
-        complete: (r) => { setCoachingData(processCoaching(r.data, nameMap)); tryFinish() },
+        complete: (r) => { nameMapPromise.then((nameMap) => { setCoachingData(processCoaching(r.data, nameMap)); tryFinish() }) },
         error: () => tryFinish(),
       })
       Papa.parse(CSV_ASSIGNMENT_OBSERVASI, {
         download: true, header: true, skipEmptyLines: true,
-        complete: (r) => { setObservationAssignmentData(processObservationAssignment(r.data, nameMap)); tryFinish() },
+        complete: (r) => { nameMapPromise.then((nameMap) => { setObservationAssignmentData(processObservationAssignment(r.data, nameMap)); tryFinish() }) },
         error: () => tryFinish(),
       })
       Papa.parse(CSV_LIVE_CLASS_ISSUES, {
         download: true, header: true, skipEmptyLines: true,
-        complete: (r) => { setLiveClassIssuesData(processLiveClassIssues(r.data, nameMap)); tryFinish() },
+        complete: (r) => { nameMapPromise.then((nameMap) => { setLiveClassIssuesData(processLiveClassIssues(r.data, nameMap)); tryFinish() }) },
         error: () => tryFinish(),
       })
       Papa.parse(CSV_PUNCTUALITY, {
@@ -1426,7 +1428,7 @@ function Dashboard({ user, accessProfile }) {
       })
       Papa.parse(CSV_EVENT_ATTENDANCE, {
         download: true, header: true, skipEmptyLines: true,
-        complete: (r) => { setEventAttendanceData(processEventAttendance(r.data, nameMap)); tryFinish() },
+        complete: (r) => { nameMapPromise.then((nameMap) => { setEventAttendanceData(processEventAttendance(r.data, nameMap)); tryFinish() }) },
         error: () => tryFinish(),
       })
     }
