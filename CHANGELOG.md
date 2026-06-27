@@ -5,6 +5,9 @@ Semua perubahan penting pada project ini didokumentasikan di file ini.
 Format berdasarkan [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
+### Changed
+- **Badge semester di section "Leave per Class"** (`.cuti-pill`, dua tempat di `App.jsx` — admin/lead view & guru biasa view) — sebelumnya menampilkan label semester statis ("SMT 2 2025/2026") yang tidak memberi konteks apa pun. Diganti jadi hint "Hover bar for dates" supaya user tahu bar di kolom "Meetings missed" (`CutiBar`) bisa di-hover untuk melihat tanggal-tanggal detail meninggalkan kelas (tooltip ini sudah ada sebelumnya, hanya belum ada penanda visual).
+
 ### Fixed
 - **Layout responsif tabel "Stickiness Index per Slot"** — badge status (`.badge`) dan streak (`.streak-badge`) sekarang `white-space: nowrap` + `flex-shrink: 0` agar tidak pecah jadi 2 baris saat kolom sempit; `.left-col`/`.right-col` ditambah `min-width: 0` supaya lebar tabel tidak ikut mendistorsi lebar grid `.two-col` (penyebab kolom Slot jadi sempit & hint "Click a slot to view the trend" pindah baris secara tidak konsisten antar guru). Tabel `.slot-box .obs-scroll` diberi `min-width: 360px` + `min-width` per kolom pertama/terakhir; jika tetap tidak cukup, scroll horizontal lokal di dalam box (bukan memepetkan isi).
 - **Scroll horizontal yang tebal/native** — `.sidebar-main`, `.sidebar-list`, dan `.modal` sebelumnya hanya set `overflow-y: auto` tanpa `overflow-x`, sehingga browser otomatis mempromosikan `overflow-x` jadi `auto` juga (CSS overflow propagation) dan menampilkan scrollbar horizontal native yang tebal. Ditambahkan `overflow-x: hidden` pada ketiganya, serta `height: 4px` pada rule `::-webkit-scrollbar` di `.obs-scroll`, `.app-body`, dan `.ov-heatmap-wrap` supaya scroll horizontal yang memang disengaja (mis. di dalam `.obs-scroll`) tampilannya tetap tipis konsisten dengan scroll vertikal.
