@@ -5,6 +5,8 @@ Semua perubahan penting pada project ini didokumentasikan di file ini.
 Format berdasarkan [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
+
+## [0.3.1] - 2026-06-26
 ### Changed
 - **User avatar di header kanan** (`UserAvatar`, `.user-avatar-wrapper`) sekarang dibungkus pill putih (`border-radius: 999px`), foto/inisial dan nama panggilan + role lebih kontras di atas header biru. Sekaligus perbaiki typo lama `width: 32x` → `32px` pada `.user-avatar-img`, dan sesuaikan warna fallback `.user-avatar-initials` (background biru header) supaya tetap terbaca di pill putih.
 - **Fallback nama panggilan & role untuk super admin tanpa row di `v_users_full`**: `nickName` sekarang fallback ke kata pertama `user.displayName` (mis. "Fatah" bukan "Fatah Abdul"), dan `role` fallback ke `"Admin"` jika `accessProfile.isSuperAdmin` true dan kolom `role` kosong. Jika row-nya ada di database, data database tetap diprioritaskan apa adanya (termasuk `role` aslinya, bukan dipaksa "Admin").
